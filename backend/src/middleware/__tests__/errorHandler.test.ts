@@ -46,12 +46,12 @@ vi.mock("../../services/github.js", () => ({
   },
 }));
 
-vi.mock("../../services/claude.js", () => ({
-  ClaudeParseError: class ClaudeParseError extends Error {
+vi.mock("../../services/openai.js", () => ({
+  AIParseError: class AIParseError extends Error {
     constructor(message: string) {
       super(message);
-      this.name = "ClaudeParseError";
-      Object.setPrototypeOf(this, ClaudeParseError.prototype);
+      this.name = "AIParseError";
+      Object.setPrototypeOf(this, AIParseError.prototype);
     }
   },
 }));
@@ -64,7 +64,7 @@ import {
   GitHubAuthError,
   GitHubRateLimitError,
 } from "../../services/github.js";
-import { ClaudeParseError } from "../../services/claude.js";
+import { AIParseError } from "../../services/openai.js";
 
 const mockLogger = vi.mocked(logger);
 
@@ -135,8 +135,8 @@ describe("errorHandler", () => {
     });
   });
 
-  it("maps ClaudeParseError to 502 with 'AI analysis failed.' message", () => {
-    const err = new ClaudeParseError("parse failed");
+  it("maps AIParseError to 502 with 'AI analysis failed.' message", () => {
+    const err = new AIParseError("parse failed");
     const res = makeRes();
 
     errorHandler(err, req, res as unknown as Response, next);
@@ -193,7 +193,7 @@ describe("errorHandler", () => {
       new GitHubNotFoundError("not found"),
       new GitHubAuthError("auth fail"),
       new GitHubRateLimitError("rate limit"),
-      new ClaudeParseError("parse fail"),
+      new AIParseError("parse fail"),
       new Error("generic"),
     ];
 

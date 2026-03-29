@@ -1,6 +1,6 @@
 import { parsePRUrl } from "../lib/parsePrUrl.js";
 import { fetchPRDiff } from "./github.js";
-import { analyzeDiff } from "./claude.js";
+import { analyzeDiff } from "./openai.js";
 import { prisma } from "../lib/prisma.js";
 import logger from "../lib/logger.js";
 import type { Review } from "@prisma/client";

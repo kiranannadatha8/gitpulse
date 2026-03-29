@@ -10,7 +10,7 @@ GitHub REST API → Claude analyzes it → structured review returned and saved.
 - Frontend: React 18, Vite, Tailwind CSS, React Query
 - Backend: Node.js 20, Express 5, Prisma ORM
 - Database: PostgreSQL 16
-- External APIs: GitHub REST API (Octokit), Anthropic Claude API (claude-sonnet-4-5)
+- External APIs: GitHub REST API (Octokit), OpenAI API (gpt-4o)
 
 ## Folder structure
 
@@ -46,7 +46,7 @@ CLAUDE.md
 
 ## Security rules
 
-- ANTHROPIC_API_KEY and GITHUB_TOKEN must be env vars only, never hardcoded
+- OPENAI_API_KEY and GITHUB_TOKEN must be env vars only, never hardcoded
 - Sanitize all PR URLs before passing to GitHub API
 - Rate limit the /api/reviews endpoint (10 req/min per IP)
 - Validate PR URL format server-side before any external call

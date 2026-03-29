@@ -17,7 +17,7 @@ Paste a GitHub PR URL and get a structured AI-powered code review in seconds. Gi
 | Frontend | React 18, Vite, Tailwind CSS v4, React Query |
 | Backend | Node.js 20, Express 5, Prisma ORM |
 | Database | PostgreSQL 16 |
-| AI | Anthropic Claude (`claude-sonnet-4-5`) |
+| AI | OpenAI (`gpt-4o`) |
 | GitHub | Octokit REST API |
 
 ## Project Structure
@@ -56,7 +56,7 @@ gitpulse/
 - Node.js 20+
 - Docker (for PostgreSQL) or an existing PostgreSQL 16 instance
 - A [GitHub personal access token](https://github.com/settings/tokens) (read-only, public repos)
-- An [Anthropic API key](https://console.anthropic.com/)
+- An [OpenAI API key](https://platform.openai.com/api-keys)
 
 ### 1. Clone the repo
 
@@ -151,7 +151,7 @@ npm run test:coverage # With coverage report
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `OPENAI_API_KEY` | OpenAI API key |
 | `GITHUB_TOKEN` | GitHub personal access token |
 | `PORT` | Backend port (default: `3001`) |
 | `FRONTEND_URL` | Frontend origin for CORS (default: `http://localhost:5173`) |

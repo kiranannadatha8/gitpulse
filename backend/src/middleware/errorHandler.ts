@@ -6,7 +6,7 @@ import {
   GitHubAuthError,
   GitHubRateLimitError,
 } from "../services/github.js";
-import { ClaudeParseError } from "../services/claude.js";
+import { AIParseError } from "../services/openai.js";
 import logger from "../lib/logger.js";
 
 export function errorHandler(
@@ -37,7 +37,7 @@ export function errorHandler(
     return;
   }
 
-  if (err instanceof ClaudeParseError) {
+  if (err instanceof AIParseError) {
     res.status(502).json({ success: false, error: "AI analysis failed. Please try again." });
     return;
   }

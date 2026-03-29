@@ -1,15 +1,15 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { env } from "../lib/env.js";
 import { ClaudeResponseSchema } from "../lib/schemas.js";
 import type { ClaudeResponse } from "../lib/schemas.js";
 import type { PRDiff } from "./github.js";
 import logger from "../lib/logger.js";
 
-export class ClaudeParseError extends Error {
+export class AIParseError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "ClaudeParseError";
-    Object.setPrototypeOf(this, ClaudeParseError.prototype);
+    this.name = "AIParseError";
+    Object.setPrototypeOf(this, AIParseError.prototype);
   }
 }
 
@@ -74,18 +74,14 @@ function buildUserMessage(prTitle: string, files: PRDiff["files"]): string {
   return `Review this GitHub PR titled: "${prTitle}"\n\n${fileSection || "No files changed."}`;
 }
 
-function buildRetryUserMessage(
-  prTitle: string,
-  files: PRDiff["files"]
-): string {
+function buildRetryUserMessage(prTitle: string, files: PRDiff["files"]): string {
   const base = buildUserMessage(prTitle, files);
   return `${base}\n\nIMPORTANT: Your previous response was not valid JSON. Please respond with ONLY a valid JSON object. Do NOT include any text outside the JSON. Start immediately with { and end with }.`;
 }
 
-function parseClaudeText(text: string): ClaudeResponse {
+function parseResponseText(text: string): ClaudeResponse {
   let jsonText = text.trim();
 
-  // Strip markdown code fences if present
   const fenceMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) {
     jsonText = fenceMatch[1].trim();
@@ -99,65 +95,58 @@ export async function analyzeDiff(
   prTitle: string,
   files: PRDiff["files"]
 ): Promise<ClaudeResponse> {
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
-  logger.info({ prTitle, fileCount: files.length }, "Sending diff to Claude");
+  logger.info({ prTitle, fileCount: files.length }, "Sending diff to OpenAI");
 
   const userMessage = buildUserMessage(prTitle, files);
 
   let firstError: unknown;
 
-  // First attempt
   try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      throw new ClaudeParseError("Claude returned no text content");
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new AIParseError("OpenAI returned no text content");
     }
 
-    return parseClaudeText(textBlock.text);
+    return parseResponseText(content);
   } catch (error) {
-    if (error instanceof ClaudeParseError) {
-      firstError = error;
-    } else if (error instanceof SyntaxError) {
-      firstError = error;
-    } else {
-      // Zod validation error or other
-      firstError = error;
-    }
-    logger.warn({ error: String(error) }, "First Claude attempt failed, retrying");
+    firstError = error;
+    logger.warn({ error: String(error) }, "First OpenAI attempt failed, retrying");
   }
 
-  // Second attempt with stricter prompt
   try {
     const retryUserMessage = buildRetryUserMessage(prTitle, files);
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 4096,
-      system: RETRY_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: retryUserMessage }],
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: RETRY_SYSTEM_PROMPT },
+        { role: "user", content: retryUserMessage },
+      ],
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
-      throw new ClaudeParseError("Claude returned no text content on retry");
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new AIParseError("OpenAI returned no text content on retry");
     }
 
-    return parseClaudeText(textBlock.text);
+    return parseResponseText(content);
   } catch (error) {
     logger.error(
       { firstError: String(firstError), retryError: String(error) },
-      "Both Claude attempts failed"
+      "Both OpenAI attempts failed"
     );
-    throw new ClaudeParseError(
-      `Failed to parse Claude response after 2 attempts. Last error: ${String(error)}`
+    throw new AIParseError(
+      `Failed to parse OpenAI response after 2 attempts. Last error: ${String(error)}`
     );
   }
 }

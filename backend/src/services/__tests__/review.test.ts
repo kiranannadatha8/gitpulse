@@ -33,12 +33,12 @@ vi.mock("../github.js", () => ({
   },
 }));
 
-vi.mock("../claude.js", () => ({
+vi.mock("../openai.js", () => ({
   analyzeDiff: vi.fn(),
-  ClaudeParseError: class ClaudeParseError extends Error {
+  AIParseError: class AIParseError extends Error {
     constructor(message: string) {
       super(message);
-      this.name = "ClaudeParseError";
+      this.name = "AIParseError";
     }
   },
 }));
@@ -54,7 +54,7 @@ vi.mock("../../lib/prisma.js", () => ({
 
 import { parsePRUrl } from "../../lib/parsePrUrl.js";
 import { fetchPRDiff } from "../github.js";
-import { analyzeDiff } from "../claude.js";
+import { analyzeDiff } from "../openai.js";
 import { prisma } from "../../lib/prisma.js";
 import { createReview, getReviewsBySession } from "../review.js";
 
