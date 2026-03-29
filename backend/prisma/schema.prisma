@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  sessionId   String
+  prUrl       String
+  prTitle     String
+  repoOwner   String
+  repoName    String
+  prNumber    Int
+  summary     String   @db.Text
+  fileReviews Json
+  riskLevel   String
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt(sort: Desc)])
+}
