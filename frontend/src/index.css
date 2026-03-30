@@ -1,1 +1,160 @@
 @import "tailwindcss";
+
+/* ─── Design tokens ───────────────────────────────────────── */
+:root {
+  --bg:          #f8f6f2;
+  --bg-card:     #ffffff;
+  --text-primary: #1a1908;
+  --text-muted:   #7c7870;
+  --border:       #e6e3dc;
+  --border-dash:  #cdc9c0;
+  --btn-bg:       #1a1908;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-ui:      "DM Sans", system-ui, sans-serif;
+}
+
+/* ─── Base ────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  min-height: 100vh;
+}
+
+body {
+  background-color: var(--bg);
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Ambient glow ────────────────────────────────────────── */
+.gp-glow {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 700px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 38% at 50% 38%, rgba(251, 191, 36, 0.20) 0%, transparent 65%),
+    radial-gradient(ellipse 75% 55% at 48% 55%, rgba(251, 146, 60, 0.09) 0%, transparent 72%),
+    radial-gradient(ellipse 45% 30% at 55% 65%, rgba(253, 186, 116, 0.07) 0%, transparent 60%);
+  animation: glow-breathe 8s ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+  50%       { opacity: 1;    transform: translateX(-50%) scale(1.04); }
+}
+
+/* ─── Entrance animations ─────────────────────────────────── */
+.gp-fade {
+  animation: gp-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.gp-delay-1 { animation-delay: 0.08s; }
+.gp-delay-2 { animation-delay: 0.18s; }
+.gp-delay-3 { animation-delay: 0.28s; }
+.gp-delay-4 { animation-delay: 0.40s; }
+
+@keyframes gp-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Input card ──────────────────────────────────────────── */
+.gp-input-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow:
+    0 4px 28px rgba(0, 0, 0, 0.06),
+    0 1px 4px  rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.gp-input-card:focus-within {
+  box-shadow:
+    0 6px 36px rgba(0, 0, 0, 0.09),
+    0 2px 6px  rgba(0, 0, 0, 0.05);
+}
+
+.gp-url-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  caret-color: var(--btn-bg);
+}
+.gp-url-input::placeholder { color: #b5b2aa; }
+
+/* ─── Submit button ───────────────────────────────────────── */
+.gp-submit {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--btn-bg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.gp-submit:hover:not(:disabled)  { transform: scale(1.08); }
+.gp-submit:active:not(:disabled) { transform: scale(0.94); }
+.gp-submit:disabled { background: #a0a09a; cursor: not-allowed; }
+
+/* ─── Example chips ───────────────────────────────────────── */
+.gp-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  background: transparent;
+  border: 1px dashed var(--border-dash);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.gp-chip:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: #b0ada6;
+}
+
+/* ─── Review card ─────────────────────────────────────────── */
+.gp-review-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.gp-file-header {
+  background: #faf9f6;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.gp-file-header:hover { background: #f3f1ec; }
+
+/* ─── History section ─────────────────────────────────────── */
+.gp-history-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.gp-history-item:hover       { background: rgba(255,255,255,0.6); border-color: #ccc9c0; }
+.gp-history-item.is-active   { background: rgba(26,25,8,0.04); border-color: #c5c1b8; }
+.gp-history-item.is-inactive { background: transparent; }

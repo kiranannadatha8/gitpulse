@@ -1,26 +1,27 @@
 import type { Review } from "../types/review";
 
+// Tailwind classes kept for test compatibility (tests assert className contains color words)
 const RISK_BADGE_CLASSES: Record<Review["riskLevel"], string> = {
-  low: "bg-green-100 text-green-800",
-  medium: "bg-yellow-100 text-yellow-800",
-  high: "bg-orange-100 text-orange-800",
+  low:      "bg-green-100 text-green-800",
+  medium:   "bg-yellow-100 text-yellow-800",
+  high:     "bg-orange-100 text-orange-800",
   critical: "bg-red-100 text-red-800",
 };
 
 function formatDate(isoString: string): string {
   return new Date(isoString).toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric",
-    year: "numeric",
+    day:   "numeric",
+    year:  "numeric",
   });
 }
 
 interface HistorySidebarProps {
-  reviews: Review[];
+  reviews:       Review[];
   activeReviewId: string | null;
-  onSelect: (review: Review) => void;
-  isLoading: boolean;
-  isError: boolean;
+  onSelect:      (review: Review) => void;
+  isLoading:     boolean;
+  isError?:      boolean;
 }
 
 export function HistorySidebar({
@@ -28,74 +29,128 @@ export function HistorySidebar({
   activeReviewId,
   onSelect,
   isLoading,
-  isError,
+  isError = false,
 }: HistorySidebarProps): JSX.Element {
   return (
-    <aside className="flex flex-col h-full bg-white border-r border-gray-200 w-64 shrink-0">
-      <div className="px-4 py-3 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-          History
-        </h2>
-      </div>
+    <section>
+      {/* "History" heading — required by tests */}
+      <h2
+        style={{
+          fontSize: 11,
+          fontWeight: 500,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+          marginBottom: 14,
+          fontFamily: "var(--font-ui)",
+        }}
+      >
+        History
+      </h2>
 
-      <div className="flex-1 overflow-y-auto">
-        {isLoading && (
-          <ul className="flex flex-col gap-2 p-3">
-            <li className="animate-pulse h-14 bg-gray-100 rounded-md" />
-            <li className="animate-pulse h-14 bg-gray-100 rounded-md" />
-            <li className="animate-pulse h-14 bg-gray-100 rounded-md" />
-          </ul>
-        )}
+      {isLoading && (
+        <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[0, 1, 2].map((i) => (
+            <li
+              key={i}
+              className="animate-pulse"
+              style={{
+                height: 60,
+                background: "#edeae3",
+                borderRadius: 12,
+                animationDelay: `${i * 0.1}s`,
+              }}
+            />
+          ))}
+        </ul>
+      )}
 
-        {!isLoading && isError && (
-          <p role="alert" className="px-4 py-6 text-sm text-red-500">
-            Failed to load history.
-          </p>
-        )}
+      {!isLoading && isError && (
+        <p
+          role="alert"
+          style={{ fontSize: 13, color: "#dc2626", fontFamily: "var(--font-ui)" }}
+        >
+          Failed to load history.
+        </p>
+      )}
 
-        {!isLoading && !isError && reviews.length === 0 && (
-          <p className="px-4 py-6 text-sm text-gray-500">No reviews yet.</p>
-        )}
+      {!isLoading && !isError && reviews.length === 0 && (
+        <p style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-ui)" }}>
+          No reviews yet.
+        </p>
+      )}
 
-        {!isLoading && !isError && reviews.length > 0 && (
-          <ul className="flex flex-col">
-            {reviews.map((review) => {
-              const isActive = review.id === activeReviewId;
-              return (
-                <li
-                  key={review.id}
-                  className={`cursor-pointer px-4 py-3 border-b border-gray-100 hover:bg-gray-50 ${
-                    isActive ? "bg-blue-50" : "bg-white"
-                  }`}
+      {!isLoading && !isError && reviews.length > 0 && (
+        <ul style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {reviews.map((review) => {
+            const isActive = review.id === activeReviewId;
+            return (
+              <li
+                key={review.id}
+                className={`gp-history-item ${isActive ? "is-active" : "is-inactive"}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelect(review)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "12px 16px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-ui)",
+                  }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onSelect(review)}
-                    className="w-full text-left flex flex-col gap-1"
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
                   >
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: "var(--text-primary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
                       {review.prTitle}
                     </span>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500">
-                        {review.repoOwner}/{review.repoName}
-                      </span>
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-semibold capitalize ${RISK_BADGE_CLASSES[review.riskLevel]}`}
-                      >
-                        {review.riskLevel}
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-400">
+                    <span
+                      className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold capitalize ${RISK_BADGE_CLASSES[review.riskLevel]}`}
+                    >
+                      {review.riskLevel}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginTop: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {review.repoOwner}/{review.repoName}
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                       {formatDate(review.createdAt)}
                     </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </aside>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
