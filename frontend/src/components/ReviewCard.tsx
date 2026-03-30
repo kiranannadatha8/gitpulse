@@ -1,19 +1,24 @@
 import { useState } from "react";
+import { LuChevronDown, LuFileCode2 } from "react-icons/lu";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { Review, FileReview, Comment } from "../types/review";
 
-// Tailwind classes kept verbatim — tests assert badge className contains color words
+// Tailwind color classes — tests assert badge className contains "green", "yellow", etc.
 const RISK_BADGE_CLASSES: Record<Review["riskLevel"], string> = {
-  low:      "bg-green-100 text-green-800",
-  medium:   "bg-yellow-100 text-yellow-800",
-  high:     "bg-orange-100 text-orange-800",
-  critical: "bg-red-100 text-red-800",
+  low:      "bg-green-100 text-green-800 border-green-200",
+  medium:   "bg-yellow-100 text-yellow-800 border-yellow-200",
+  high:     "bg-orange-100 text-orange-800 border-orange-200",
+  critical: "bg-red-100 text-red-800 border-red-200",
 };
 
 const SEVERITY_BADGE_CLASSES: Record<Comment["severity"], string> = {
-  info:     "bg-blue-100 text-blue-800",
-  warning:  "bg-yellow-100 text-yellow-800",
-  error:    "bg-red-100 text-red-800",
-  critical: "bg-red-200 text-red-900",
+  info:     "bg-blue-100 text-blue-800 border-blue-200",
+  warning:  "bg-yellow-100 text-yellow-800 border-yellow-200",
+  error:    "bg-red-100 text-red-800 border-red-200",
+  critical: "bg-red-200 text-red-900 border-red-300",
 };
 
 interface FileReviewSectionProps {
@@ -24,54 +29,34 @@ function FileReviewSection({ fileReview }: FileReviewSectionProps): JSX.Element 
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+    <div className="border border-border rounded-xl overflow-hidden">
+      {/* File header — toggle button */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="gp-file-header"
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "9px 16px",
-          textAlign: "left",
-          border: "none",
-          cursor: "pointer",
-          fontFamily: "var(--font-ui)",
-        }}
+        className={cn(
+          "gp-file-header w-full flex items-center justify-between px-4 py-2.5 text-left",
+          "border-none cursor-pointer"
+        )}
       >
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--text-primary)",
-            fontFamily: "ui-monospace, SFMono-Regular, monospace",
-          }}
-        >
-          {fileReview.filename}
-        </span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden="true"
-          style={{
-            color: "var(--text-muted)",
-            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.15s",
-            flexShrink: 0,
-          }}
-        >
-          <path
-            d="M6 9l6 6 6-6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        <div className="flex items-center gap-2">
+          <LuFileCode2
+            size={14}
+            className="text-muted-foreground shrink-0"
+            aria-hidden="true"
           />
-        </svg>
+          <span className="text-[13px] font-medium text-foreground font-mono">
+            {fileReview.filename}
+          </span>
+        </div>
+        <LuChevronDown
+          size={14}
+          className={cn(
+            "text-muted-foreground transition-transform duration-150 shrink-0",
+            isOpen ? "rotate-180" : "rotate-0"
+          )}
+          aria-hidden="true"
+        />
       </button>
 
       {isOpen && (
@@ -79,38 +64,31 @@ function FileReviewSection({ fileReview }: FileReviewSectionProps): JSX.Element 
           {fileReview.comments.map((comment, idx) => (
             <li
               key={`${comment.severity}-${comment.line ?? "null"}-${idx}`}
-              style={{
-                padding: "12px 16px",
-                borderTop: idx === 0 ? "none" : "1px solid var(--border)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 5,
-              }}
+              className={cn(
+                "px-4 py-3 flex flex-col gap-1.5",
+                idx > 0 && "border-t border-border"
+              )}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span
-                  className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${SEVERITY_BADGE_CLASSES[comment.severity]}`}
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={cn(
+                    "text-[11px] rounded",
+                    SEVERITY_BADGE_CLASSES[comment.severity]
+                  )}
                 >
                   {comment.severity}
-                </span>
+                </Badge>
                 {comment.line !== null && (
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  <span className="text-xs text-muted-foreground">
                     Line {comment.line}
                   </span>
                 )}
               </div>
-              <p style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.5 }}>
+              <p className="text-[13px] text-foreground leading-relaxed">
                 {comment.message}
               </p>
               {comment.suggestion !== null && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-muted)",
-                    fontStyle: "italic",
-                    lineHeight: 1.4,
-                  }}
-                >
+                <p className="text-xs text-muted-foreground italic leading-snug">
                   {comment.suggestion}
                 </p>
               )}
@@ -128,96 +106,58 @@ interface ReviewCardProps {
 
 export function ReviewCard({ review }: ReviewCardProps): JSX.Element {
   return (
-    <article className="gp-review-card">
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-          padding: "20px 24px 16px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h2
-            data-testid="pr-title"
-            style={{
-              fontSize: 16,
-              fontWeight: 500,
-              color: "var(--text-primary)",
-              fontFamily: "var(--font-ui)",
-              lineHeight: 1.4,
-              margin: 0,
-            }}
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3 border-b border-border">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h2
+              data-testid="pr-title"
+              className="text-[15px] font-medium text-foreground leading-snug"
+              style={{ fontFamily: "var(--font-ui)" }}
+            >
+              {review.prTitle}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground font-mono">
+              {review.repoOwner}/{review.repoName} #{review.prNumber}
+            </p>
+          </div>
+
+          <Badge
+            data-testid="risk-badge"
+            className={cn(
+              "shrink-0 capitalize text-xs rounded-full px-3 py-1",
+              RISK_BADGE_CLASSES[review.riskLevel]
+            )}
           >
-            {review.prTitle}
-          </h2>
-          <p
-            style={{
-              margin: "4px 0 0",
-              fontSize: 12,
-              color: "var(--text-muted)",
-              fontFamily: "ui-monospace, monospace",
-            }}
-          >
-            {review.repoOwner}/{review.repoName} #{review.prNumber}
-          </p>
+            {review.riskLevel}
+          </Badge>
         </div>
+      </CardHeader>
 
-        <span
-          data-testid="risk-badge"
-          className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold capitalize ${RISK_BADGE_CLASSES[review.riskLevel]}`}
-        >
-          {review.riskLevel}
-        </span>
-      </div>
-
-      {/* Summary */}
-      <div style={{ padding: "16px 24px" }}>
+      <CardContent className="pt-4 flex flex-col gap-4">
+        {/* Summary */}
         <p
           data-testid="review-summary"
-          style={{
-            fontSize: 14,
-            color: "var(--text-primary)",
-            lineHeight: 1.65,
-            fontFamily: "var(--font-ui)",
-            margin: 0,
-          }}
+          className="text-[13px] text-foreground leading-relaxed"
         >
           {review.summary}
         </p>
-      </div>
 
-      {/* File reviews */}
-      {review.fileReviews.length > 0 && (
-        <div
-          style={{
-            padding: "0 24px 20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 500,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--text-muted)",
-              marginBottom: 4,
-              fontFamily: "var(--font-ui)",
-            }}
-          >
-            File Reviews
-          </p>
-          {review.fileReviews.map((fileReview) => (
-            <FileReviewSection key={fileReview.filename} fileReview={fileReview} />
-          ))}
-        </div>
-      )}
-    </article>
+        {/* File reviews */}
+        {review.fileReviews.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-medium tracking-widest uppercase text-muted-foreground">
+              File Reviews
+            </p>
+            {review.fileReviews.map((fileReview) => (
+              <FileReviewSection
+                key={fileReview.filename}
+                fileReview={fileReview}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

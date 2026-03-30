@@ -1,11 +1,14 @@
+import { LuHistory, LuAlertCircle } from "react-icons/lu";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Review } from "../types/review";
 
-// Tailwind classes kept for test compatibility (tests assert className contains color words)
+// Tailwind color classes retained — tests assert className contains color words
 const RISK_BADGE_CLASSES: Record<Review["riskLevel"], string> = {
-  low:      "bg-green-100 text-green-800",
-  medium:   "bg-yellow-100 text-yellow-800",
-  high:     "bg-orange-100 text-orange-800",
-  critical: "bg-red-100 text-red-800",
+  low:      "bg-green-100 text-green-800 border-green-200",
+  medium:   "bg-yellow-100 text-yellow-800 border-yellow-200",
+  high:     "bg-orange-100 text-orange-800 border-orange-200",
+  critical: "bg-red-100 text-red-800 border-red-200",
 };
 
 function formatDate(isoString: string): string {
@@ -17,11 +20,11 @@ function formatDate(isoString: string): string {
 }
 
 interface HistorySidebarProps {
-  reviews:       Review[];
+  reviews:        Review[];
   activeReviewId: string | null;
-  onSelect:      (review: Review) => void;
-  isLoading:     boolean;
-  isError?:      boolean;
+  onSelect:       (review: Review) => void;
+  isLoading:      boolean;
+  isError?:       boolean;
 }
 
 export function HistorySidebar({
@@ -33,115 +36,76 @@ export function HistorySidebar({
 }: HistorySidebarProps): JSX.Element {
   return (
     <section>
-      {/* "History" heading — required by tests */}
-      <h2
-        style={{
-          fontSize: 11,
-          fontWeight: 500,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "var(--text-muted)",
-          marginBottom: 14,
-          fontFamily: "var(--font-ui)",
-        }}
-      >
-        History
-      </h2>
+      {/* Section heading — "History" text required by tests */}
+      <div className="flex items-center gap-2 mb-3">
+        <LuHistory size={13} className="text-muted-foreground" aria-hidden="true" />
+        <h2 className="text-[11px] font-medium tracking-[0.1em] uppercase text-muted-foreground">
+          History
+        </h2>
+      </div>
 
+      {/* Loading skeletons — animate-pulse required by tests (≥3 elements) */}
       {isLoading && (
-        <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <ul className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (
             <li
               key={i}
-              className="animate-pulse"
-              style={{
-                height: 60,
-                background: "#edeae3",
-                borderRadius: 12,
-                animationDelay: `${i * 0.1}s`,
-              }}
+              className="animate-pulse h-[60px] rounded-xl bg-secondary"
+              style={{ animationDelay: `${i * 0.1}s` }}
             />
           ))}
         </ul>
       )}
 
       {!isLoading && isError && (
-        <p
-          role="alert"
-          style={{ fontSize: 13, color: "#dc2626", fontFamily: "var(--font-ui)" }}
-        >
-          Failed to load history.
-        </p>
+        <div className="flex items-center gap-2">
+          <LuAlertCircle size={13} className="text-destructive" aria-hidden="true" />
+          <p role="alert" className="text-[13px] text-destructive">
+            Failed to load history.
+          </p>
+        </div>
       )}
 
       {!isLoading && !isError && reviews.length === 0 && (
-        <p style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-ui)" }}>
-          No reviews yet.
-        </p>
+        <p className="text-[13px] text-muted-foreground">No reviews yet.</p>
       )}
 
       {!isLoading && !isError && reviews.length > 0 && (
-        <ul style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <ul className="flex flex-col gap-1.5">
           {reviews.map((review) => {
             const isActive = review.id === activeReviewId;
             return (
               <li
                 key={review.id}
-                className={`gp-history-item ${isActive ? "is-active" : "is-inactive"}`}
+                className={cn(
+                  "gp-history-item",
+                  isActive ? "is-active" : "is-inactive"
+                )}
               >
                 <button
                   type="button"
                   onClick={() => onSelect(review)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    fontFamily: "var(--font-ui)",
-                  }}
+                  className="w-full text-left px-4 py-3 bg-transparent border-none cursor-pointer"
+                  style={{ fontFamily: "var(--font-ui)" }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      gap: 12,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--text-primary)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-[13px] font-medium text-foreground truncate flex-1 min-w-0">
                       {review.prTitle}
                     </span>
-                    <span
-                      className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold capitalize ${RISK_BADGE_CLASSES[review.riskLevel]}`}
+                    <Badge
+                      className={cn(
+                        "shrink-0 text-[10px] rounded capitalize",
+                        RISK_BADGE_CLASSES[review.riskLevel]
+                      )}
                     >
                       {review.riskLevel}
-                    </span>
+                    </Badge>
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginTop: 4,
-                    }}
-                  >
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-muted-foreground">
                       {review.repoOwner}/{review.repoName}
                     </span>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    <span className="text-xs text-muted-foreground">
                       {formatDate(review.createdAt)}
                     </span>
                   </div>

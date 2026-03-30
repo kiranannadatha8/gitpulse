@@ -2,32 +2,17 @@ export function LoadingState(): JSX.Element {
   return (
     <div
       data-testid="loading-state"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 16,
-        padding: "48px 0",
-        fontFamily: "var(--font-ui)",
-      }}
+      className="flex flex-col items-center gap-4 py-12"
+      style={{ fontFamily: "var(--font-ui)" }}
     >
-      {/* Spinner — animate-spin and role=status required by tests */}
+      {/* animate-spin + role=status required by tests */}
       <div
         role="status"
         aria-label="Loading"
-        className="animate-spin"
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          border: "2px solid var(--border)",
-          borderTopColor: "var(--btn-bg)",
-        }}
+        className="animate-spin h-7 w-7 rounded-full border-2 border-border border-t-primary"
       />
-      {/* Exact text required by test */}
-      <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
-        Analyzing your PR...
-      </p>
+      {/* Exact text required by tests */}
+      <p className="text-[13px] text-muted-foreground">Analyzing your PR...</p>
     </div>
   );
 }
