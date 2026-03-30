@@ -1,7 +1,7 @@
 import { z } from "zod";
 import "dotenv/config";
 
-const envSchema = z.object({
+export const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
   GITHUB_TOKEN: z.string().min(1, "GITHUB_TOKEN is required"),
