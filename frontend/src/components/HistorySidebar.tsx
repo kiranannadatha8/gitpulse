@@ -1,4 +1,4 @@
-import { LuHistory, LuAlertCircle } from "react-icons/lu";
+import { LuHistory, LuCircleAlert } from "react-icons/lu";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Review } from "../types/review";
@@ -59,7 +59,7 @@ export function HistorySidebar({
 
       {!isLoading && isError && (
         <div className="flex items-center gap-2">
-          <LuAlertCircle size={13} className="text-destructive" aria-hidden="true" />
+          <LuCircleAlert size={13} className="text-destructive" aria-hidden="true" />
           <p role="alert" className="text-[13px] text-destructive">
             Failed to load history.
           </p>

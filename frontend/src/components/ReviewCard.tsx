@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { LuChevronDown, LuFileCode2 } from "react-icons/lu";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Review, FileReview, Comment } from "../types/review";
