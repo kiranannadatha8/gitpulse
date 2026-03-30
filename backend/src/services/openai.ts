@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { env } from "../lib/env.js";
-import { ClaudeResponseSchema } from "../lib/schemas.js";
-import type { ClaudeResponse } from "../lib/schemas.js";
+import { AIResponseSchema } from "../lib/schemas.js";
+import type { AIResponse } from "../lib/schemas.js";
 import type { PRDiff } from "./github.js";
 import logger from "../lib/logger.js";
 
@@ -63,6 +63,9 @@ Valid values for severity: "info", "warning", "error", "critical"
 
 Return ONLY the JSON object. Start your response with { and end with }.`;
 
+// Singleton — reuses connection pool across requests
+const openaiClient = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+
 function buildUserMessage(prTitle: string, files: PRDiff["files"]): string {
   const fileSection = files
     .map((f) => {
@@ -79,7 +82,7 @@ function buildRetryUserMessage(prTitle: string, files: PRDiff["files"]): string 
   return `${base}\n\nIMPORTANT: Your previous response was not valid JSON. Please respond with ONLY a valid JSON object. Do NOT include any text outside the JSON. Start immediately with { and end with }.`;
 }
 
-function parseResponseText(text: string): ClaudeResponse {
+function parseResponseText(text: string): AIResponse {
   let jsonText = text.trim();
 
   const fenceMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -88,15 +91,13 @@ function parseResponseText(text: string): ClaudeResponse {
   }
 
   const parsed: unknown = JSON.parse(jsonText);
-  return ClaudeResponseSchema.parse(parsed);
+  return AIResponseSchema.parse(parsed);
 }
 
 export async function analyzeDiff(
   prTitle: string,
   files: PRDiff["files"]
-): Promise<ClaudeResponse> {
-  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-
+): Promise<AIResponse> {
   logger.info({ prTitle, fileCount: files.length }, "Sending diff to OpenAI");
 
   const userMessage = buildUserMessage(prTitle, files);
@@ -104,7 +105,7 @@ export async function analyzeDiff(
   let firstError: unknown;
 
   try {
-    const response = await client.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -126,7 +127,7 @@ export async function analyzeDiff(
   try {
     const retryUserMessage = buildRetryUserMessage(prTitle, files);
 
-    const response = await client.chat.completions.create({
+    const response = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: RETRY_SYSTEM_PROMPT },

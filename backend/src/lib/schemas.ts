@@ -26,14 +26,14 @@ export const FileReviewSchema = z.object({
 
 export type FileReview = z.infer<typeof FileReviewSchema>;
 
-// Shape the Claude LLM must return (for validation)
-export const ClaudeResponseSchema = z.object({
+// Shape the AI model must return (for validation)
+export const AIResponseSchema = z.object({
   summary: z.string().min(1),
   riskLevel: z.enum(["low", "medium", "high", "critical"]),
   fileReviews: z.array(FileReviewSchema),
 });
 
-export type ClaudeResponse = z.infer<typeof ClaudeResponseSchema>;
+export type AIResponse = z.infer<typeof AIResponseSchema>;
 
 // Final API response shape
 export const ReviewResponseSchema = z.object({

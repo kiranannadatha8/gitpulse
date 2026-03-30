@@ -42,6 +42,7 @@ export async function getReviewsBySession(sessionId: string): Promise<Review[]> 
   const reviews = await prisma.review.findMany({
     where: { sessionId },
     orderBy: { createdAt: "desc" },
+    take: 50,
   });
 
   logger.info({ sessionId, count: reviews.length }, "Reviews fetched");

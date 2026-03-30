@@ -31,26 +31,30 @@ export interface PRDiff {
   files: Array<{ filename: string; status: string; patch: string | undefined }>;
 }
 
-const MAX_DIFF_BYTES = 100_000;
+// Singleton — reuses connection pool across requests
+const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
+
+// Named MAX_DIFF_CHARS — measures JS string length (UTF-16 code units), not bytes
+const MAX_DIFF_CHARS = 100_000;
 
 function truncateDiff(
   files: Array<{ filename: string; status: string; patch: string | undefined }>
 ): Array<{ filename: string; status: string; patch: string | undefined }> {
-  let bytesUsed = 0;
+  let charsUsed = 0;
   return files.map((file) => {
     if (!file.patch) return file;
 
-    const remaining = MAX_DIFF_BYTES - bytesUsed;
+    const remaining = MAX_DIFF_CHARS - charsUsed;
     if (remaining <= 0) {
       return { ...file, patch: undefined };
     }
 
     if (file.patch.length > remaining) {
-      bytesUsed += remaining;
+      charsUsed += remaining;
       return { ...file, patch: file.patch.slice(0, remaining) };
     }
 
-    bytesUsed += file.patch.length;
+    charsUsed += file.patch.length;
     return file;
   });
 }
@@ -80,11 +84,11 @@ export async function fetchPRDiff(
   repo: string,
   prNumber: number
 ): Promise<PRDiff> {
-  const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
-
   logger.info({ owner, repo, prNumber }, "Fetching PR diff from GitHub");
 
   let title: string;
+  let rawFiles: Array<{ filename: string; status: string; patch?: string }>;
+
   try {
     const { data } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
     title = data.title;
@@ -92,7 +96,6 @@ export async function fetchPRDiff(
     mapOctokitError(error);
   }
 
-  let rawFiles: Array<{ filename: string; status: string; patch?: string }>;
   try {
     const { data } = await octokit.rest.pulls.listFiles({
       owner,
@@ -105,7 +108,7 @@ export async function fetchPRDiff(
   }
 
   const files = truncateDiff(
-    rawFiles.map((f) => ({
+    rawFiles!.map((f) => ({
       filename: f.filename,
       status: f.status,
       patch: f.patch,
@@ -114,5 +117,5 @@ export async function fetchPRDiff(
 
   logger.info({ owner, repo, prNumber, fileCount: files.length }, "PR diff fetched");
 
-  return { title, files };
+  return { title: title!, files };
 }

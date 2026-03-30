@@ -21,7 +21,7 @@ export class ErrorBoundary extends React.Component<
 
   componentDidCatch(_error: Error, _info: React.ErrorInfo): void {
     // Errors are already captured in state via getDerivedStateFromError.
-    // Additional reporting (e.g. Sentry) could be wired here in future.
+    // Wire up error reporting (e.g. Sentry) here in future.
   }
 
   private handleReset = (): void => {
@@ -30,11 +30,18 @@ export class ErrorBoundary extends React.Component<
 
   render(): React.ReactNode {
     if (this.state.hasError) {
+      const isDev = import.meta.env.DEV;
       return (
         <div data-testid="error-boundary-fallback">
           <h2>Something went wrong.</h2>
-          <p>{this.state.error?.message}</p>
-          <button onClick={this.handleReset}>Try again</button>
+          <p>
+            {isDev
+              ? this.state.error?.message
+              : "An unexpected error occurred. Please refresh the page."}
+          </p>
+          <button type="button" onClick={this.handleReset}>
+            Try again
+          </button>
         </div>
       );
     }

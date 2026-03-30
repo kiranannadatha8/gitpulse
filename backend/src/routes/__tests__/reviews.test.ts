@@ -5,7 +5,7 @@ import request from "supertest";
 vi.mock("../../lib/env.js", () => ({
   env: {
     GITHUB_TOKEN: "test-token",
-    ANTHROPIC_API_KEY: "test-key",
+    OPENAI_API_KEY: "test-key",
     DATABASE_URL: "postgresql://localhost/test",
     PORT: 3001,
     FRONTEND_URL: "http://localhost:5173",
@@ -180,7 +180,7 @@ describe("POST /api/reviews", () => {
 
   it("preserves existing sessionId cookie when present", async () => {
     mockCreateReview.mockResolvedValue(MOCK_REVIEW as never);
-    const existingSessionId = "existing-session-abc-123";
+    const existingSessionId = "a1b2c3d4-e5f6-4789-8abc-def012345678";
 
     const res = await request(app)
       .post("/api/reviews")
@@ -212,14 +212,15 @@ describe("GET /api/reviews", () => {
     const reviews = [MOCK_REVIEW, { ...MOCK_REVIEW, id: "review-uuid-5678" }];
     mockGetReviewsBySession.mockResolvedValue(reviews as never);
 
+    const sessionId = "b2c3d4e5-f6a7-4890-9bcd-ef0123456789";
     const res = await request(app)
       .get("/api/reviews")
-      .set("Cookie", "sessionId=my-session-id");
+      .set("Cookie", `sessionId=${sessionId}`);
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toHaveLength(2);
-    expect(mockGetReviewsBySession).toHaveBeenCalledWith("my-session-id");
+    expect(mockGetReviewsBySession).toHaveBeenCalledWith(sessionId);
   });
 
   it("returns 200 with empty array when no reviews exist", async () => {
@@ -227,7 +228,7 @@ describe("GET /api/reviews", () => {
 
     const res = await request(app)
       .get("/api/reviews")
-      .set("Cookie", "sessionId=empty-session");
+      .set("Cookie", "sessionId=d4e5f6a7-b8c9-4012-bdef-012345678901");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([]);
@@ -238,7 +239,7 @@ describe("GET /api/reviews", () => {
 
     const res = await request(app)
       .get("/api/reviews")
-      .set("Cookie", "sessionId=some-session");
+      .set("Cookie", "sessionId=c3d4e5f6-a7b8-4901-acde-f01234567890");
 
     expect(res.status).toBe(500);
     expect(res.body.success).toBe(false);

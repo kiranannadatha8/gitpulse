@@ -1,16 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("openai", () => {
-  const mockCreate = vi.fn();
-  const MockOpenAI = vi.fn(() => ({
+// vi.hoisted runs during the hoist phase, before const declarations —
+// this lets the vi.mock factory reference this function safely.
+const mockCreate = vi.hoisted(() => vi.fn());
+
+// Mock openai before importing the module under test.
+// The singleton client is constructed at module load time using this mock.
+vi.mock("openai", () => ({
+  default: vi.fn(() => ({
     chat: {
       completions: {
         create: mockCreate,
       },
     },
-  }));
-  return { default: MockOpenAI };
-});
+  })),
+}));
 
 vi.mock("../../lib/env.js", () => ({
   env: {
@@ -23,10 +27,7 @@ vi.mock("../../lib/env.js", () => ({
   },
 }));
 
-import OpenAI from "openai";
 import { analyzeDiff, AIParseError } from "../openai.js";
-
-const MockOpenAI = OpenAI as unknown as ReturnType<typeof vi.fn>;
 
 const VALID_RESPONSE = {
   summary: "This PR fixes a critical bug in the authentication flow.",
@@ -64,15 +65,9 @@ describe("analyzeDiff", () => {
   });
 
   it("parses and returns a valid OpenAI JSON response", async () => {
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: {
-        completions: {
-          create: vi.fn().mockResolvedValue(
-            makeCompletionResponse(JSON.stringify(VALID_RESPONSE))
-          ),
-        },
-      },
-    }));
+    mockCreate.mockResolvedValue(
+      makeCompletionResponse(JSON.stringify(VALID_RESPONSE))
+    );
 
     const result = await analyzeDiff("Fix auth bug", [
       { filename: "src/auth.ts", status: "modified", patch: "- bad\n+ good" },
@@ -87,16 +82,9 @@ describe("analyzeDiff", () => {
   });
 
   it("retries once when first response is malformed JSON", async () => {
-    const mockCreate = vi
-      .fn()
+    mockCreate
       .mockResolvedValueOnce(makeCompletionResponse("not valid json {{{{"))
-      .mockResolvedValueOnce(
-        makeCompletionResponse(JSON.stringify(VALID_RESPONSE))
-      );
-
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: { completions: { create: mockCreate } },
-    }));
+      .mockResolvedValueOnce(makeCompletionResponse(JSON.stringify(VALID_RESPONSE)));
 
     const result = await analyzeDiff("Fix auth bug", [
       { filename: "src/auth.ts", status: "modified", patch: "+ fix" },
@@ -109,14 +97,9 @@ describe("analyzeDiff", () => {
   it("retries once when first response fails Zod validation", async () => {
     const invalidResponse = { summary: "ok", riskLevel: "INVALID", fileReviews: [] };
 
-    const mockCreate = vi
-      .fn()
+    mockCreate
       .mockResolvedValueOnce(makeCompletionResponse(JSON.stringify(invalidResponse)))
       .mockResolvedValueOnce(makeCompletionResponse(JSON.stringify(VALID_RESPONSE)));
-
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: { completions: { create: mockCreate } },
-    }));
 
     const result = await analyzeDiff("Fix auth bug", []);
     expect(mockCreate).toHaveBeenCalledTimes(2);
@@ -126,14 +109,9 @@ describe("analyzeDiff", () => {
   });
 
   it("throws AIParseError when both attempts fail", async () => {
-    const mockCreate = vi
-      .fn()
+    mockCreate
       .mockResolvedValueOnce(makeCompletionResponse("garbage"))
       .mockResolvedValueOnce(makeCompletionResponse("still garbage"));
-
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: { completions: { create: mockCreate } },
-    }));
 
     await expect(
       analyzeDiff("Fix auth bug", [
@@ -145,14 +123,9 @@ describe("analyzeDiff", () => {
   });
 
   it("throws AIParseError when response JSON fails schema on both attempts", async () => {
-    const mockCreate = vi
-      .fn()
+    mockCreate
       .mockResolvedValueOnce(makeCompletionResponse("{}"))
       .mockResolvedValueOnce(makeCompletionResponse("{}"));
-
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: { completions: { create: mockCreate } },
-    }));
 
     await expect(analyzeDiff("some PR", [])).rejects.toThrow(AIParseError);
   });
@@ -165,17 +138,11 @@ describe("analyzeDiff", () => {
   });
 
   it("handles empty files array gracefully", async () => {
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: {
-        completions: {
-          create: vi.fn().mockResolvedValue(
-            makeCompletionResponse(
-              JSON.stringify({ summary: "No files.", riskLevel: "low", fileReviews: [] })
-            )
-          ),
-        },
-      },
-    }));
+    mockCreate.mockResolvedValue(
+      makeCompletionResponse(
+        JSON.stringify({ summary: "No files.", riskLevel: "low", fileReviews: [] })
+      )
+    );
 
     const result = await analyzeDiff("Empty PR", []);
     expect(result.summary).toBe("No files.");
@@ -183,14 +150,9 @@ describe("analyzeDiff", () => {
   });
 
   it("second attempt includes JSON instruction for stricter guidance", async () => {
-    const mockCreate = vi
-      .fn()
+    mockCreate
       .mockResolvedValueOnce(makeCompletionResponse("bad json"))
       .mockResolvedValueOnce(makeCompletionResponse(JSON.stringify(VALID_RESPONSE)));
-
-    MockOpenAI.mockImplementationOnce(() => ({
-      chat: { completions: { create: mockCreate } },
-    }));
 
     await analyzeDiff("Fix auth bug", []);
 

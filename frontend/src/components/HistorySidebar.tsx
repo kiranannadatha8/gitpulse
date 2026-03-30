@@ -20,6 +20,7 @@ interface HistorySidebarProps {
   activeReviewId: string | null;
   onSelect: (review: Review) => void;
   isLoading: boolean;
+  isError: boolean;
 }
 
 export function HistorySidebar({
@@ -27,6 +28,7 @@ export function HistorySidebar({
   activeReviewId,
   onSelect,
   isLoading,
+  isError,
 }: HistorySidebarProps): JSX.Element {
   return (
     <aside className="flex flex-col h-full bg-white border-r border-gray-200 w-64 shrink-0">
@@ -45,11 +47,17 @@ export function HistorySidebar({
           </ul>
         )}
 
-        {!isLoading && reviews.length === 0 && (
+        {!isLoading && isError && (
+          <p role="alert" className="px-4 py-6 text-sm text-red-500">
+            Failed to load history.
+          </p>
+        )}
+
+        {!isLoading && !isError && reviews.length === 0 && (
           <p className="px-4 py-6 text-sm text-gray-500">No reviews yet.</p>
         )}
 
-        {!isLoading && reviews.length > 0 && (
+        {!isLoading && !isError && reviews.length > 0 && (
           <ul className="flex flex-col">
             {reviews.map((review) => {
               const isActive = review.id === activeReviewId;

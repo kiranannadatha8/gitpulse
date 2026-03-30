@@ -215,6 +215,7 @@ describe("getReviewsBySession", () => {
     expect(mockPrismaFindMany).toHaveBeenCalledWith({
       where: { sessionId: MOCK_SESSION_ID },
       orderBy: { createdAt: "desc" },
+      take: 50,
     });
     expect(result).toHaveLength(2);
     expect(result[0].id).toBe("uuid-1234");

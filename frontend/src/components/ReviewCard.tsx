@@ -36,7 +36,7 @@ function FileReviewSection({ fileReview }: FileReviewSectionProps): JSX.Element 
       {isOpen && (
         <ul className="divide-y divide-gray-100">
           {fileReview.comments.map((comment, idx) => (
-            <li key={idx} className="px-4 py-3 flex flex-col gap-1">
+            <li key={`${comment.severity}-${comment.line ?? "null"}-${idx}`} className="px-4 py-3 flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${SEVERITY_BADGE_CLASSES[comment.severity]}`}

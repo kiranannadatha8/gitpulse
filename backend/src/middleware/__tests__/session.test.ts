@@ -42,7 +42,7 @@ describe("sessionMiddleware", () => {
   });
 
   it("reuses existing sessionId from cookie when present", () => {
-    const existingId = "existing-session-uuid-5678";
+    const existingId = "a1b2c3d4-e5f6-4789-8abc-def012345678";
     const req = makeReq({ sessionId: existingId });
     const res = makeRes();
 

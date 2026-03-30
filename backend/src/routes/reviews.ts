@@ -30,6 +30,7 @@ router.post(
 
 router.get(
   "/reviews",
+  reviewRateLimit,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const reviews = await getReviewsBySession(req.sessionId);
