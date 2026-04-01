@@ -48,6 +48,7 @@ vi.mock("../../lib/prisma.js", () => ({
     review: {
       create: vi.fn(),
       findMany: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -56,13 +57,14 @@ import { parsePRUrl } from "../../lib/parsePrUrl.js";
 import { fetchPRDiff } from "../github.js";
 import { analyzeDiff } from "../openai.js";
 import { prisma } from "../../lib/prisma.js";
-import { createReview, getReviewsBySession } from "../review.js";
+import { createReview, getReviewsBySession, migrateSessionReviews } from "../review.js";
 
 const mockParsePRUrl = vi.mocked(parsePRUrl);
 const mockFetchPRDiff = vi.mocked(fetchPRDiff);
 const mockAnalyzeDiff = vi.mocked(analyzeDiff);
 const mockPrismaCreate = vi.mocked(prisma.review.create);
 const mockPrismaFindMany = vi.mocked(prisma.review.findMany);
+const mockPrismaUpdateMany = vi.mocked(prisma.review.updateMany);
 
 const MOCK_PR_URL = "https://github.com/owner/repo/pull/42";
 const MOCK_SESSION_ID = "session-abc-123";
@@ -235,5 +237,86 @@ describe("getReviewsBySession", () => {
     await expect(getReviewsBySession(MOCK_SESSION_ID)).rejects.toThrow(
       "DB connection failed"
     );
+  });
+
+  it("when userId is provided, queries by userId instead of sessionId", async () => {
+    const userId = "user-uuid-abc";
+    mockPrismaFindMany.mockResolvedValue([MOCK_REVIEW_RECORD] as never);
+
+    await getReviewsBySession(MOCK_SESSION_ID, userId);
+
+    expect(mockPrismaFindMany).toHaveBeenCalledWith({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  });
+});
+
+describe("createReview with userId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("passes userId to prisma when provided", async () => {
+    const userId = "user-uuid-xyz";
+    mockParsePRUrl.mockReturnValue(MOCK_PARSED);
+    mockFetchPRDiff.mockResolvedValue(MOCK_DIFF);
+    mockAnalyzeDiff.mockResolvedValue(MOCK_ANALYSIS);
+    mockPrismaCreate.mockResolvedValue(MOCK_REVIEW_RECORD as never);
+
+    await createReview(MOCK_PR_URL, MOCK_SESSION_ID, userId);
+
+    expect(mockPrismaCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId }),
+    });
+  });
+
+  it("stores userId as null when not provided", async () => {
+    mockParsePRUrl.mockReturnValue(MOCK_PARSED);
+    mockFetchPRDiff.mockResolvedValue(MOCK_DIFF);
+    mockAnalyzeDiff.mockResolvedValue(MOCK_ANALYSIS);
+    mockPrismaCreate.mockResolvedValue(MOCK_REVIEW_RECORD as never);
+
+    await createReview(MOCK_PR_URL, MOCK_SESSION_ID);
+
+    expect(mockPrismaCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: null }),
+    });
+  });
+});
+
+describe("migrateSessionReviews", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("updates all null-userId reviews for the session to the given userId", async () => {
+    mockPrismaUpdateMany.mockResolvedValue({ count: 3 } as never);
+    const userId = "user-uuid-migrate";
+
+    const count = await migrateSessionReviews(MOCK_SESSION_ID, userId);
+
+    expect(mockPrismaUpdateMany).toHaveBeenCalledWith({
+      where: { sessionId: MOCK_SESSION_ID, userId: null },
+      data: { userId },
+    });
+    expect(count).toBe(3);
+  });
+
+  it("returns 0 when no reviews are migrated", async () => {
+    mockPrismaUpdateMany.mockResolvedValue({ count: 0 } as never);
+
+    const count = await migrateSessionReviews("empty-session", "user-uuid-none");
+
+    expect(count).toBe(0);
+  });
+
+  it("propagates Prisma errors", async () => {
+    mockPrismaUpdateMany.mockRejectedValue(new Error("DB error"));
+
+    await expect(
+      migrateSessionReviews(MOCK_SESSION_ID, "user-id")
+    ).rejects.toThrow("DB error");
   });
 });

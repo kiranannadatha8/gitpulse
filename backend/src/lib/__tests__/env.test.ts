@@ -1,13 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { envSchema } from "../env.js";
 
+const REQUIRED = {
+  DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
+  OPENAI_API_KEY: "sk-test-key",
+  GITHUB_TOKEN: "ghp_testtoken",
+  GITHUB_CLIENT_ID: "client-id-test",
+  GITHUB_CLIENT_SECRET: "client-secret-test",
+  SESSION_SECRET: "super-secret-session-key-at-least-32-chars",
+};
+
 describe("envSchema", () => {
   describe("valid environment", () => {
     it("passes validation with all required fields", () => {
       const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
-        OPENAI_API_KEY: "sk-test-key",
-        GITHUB_TOKEN: "ghp_testtoken",
+        ...REQUIRED,
         PORT: 3001,
         FRONTEND_URL: "http://localhost:5173",
         NODE_ENV: "development",
@@ -16,24 +23,14 @@ describe("envSchema", () => {
     });
 
     it("passes with only required fields (uses defaults)", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-      });
+      const result = envSchema.safeParse(REQUIRED);
       expect(result.success).toBe(true);
     });
   });
 
   describe("default values", () => {
-    const baseEnv = {
-      DATABASE_URL: "postgresql://localhost/testdb",
-      OPENAI_API_KEY: "sk-test",
-      GITHUB_TOKEN: "ghp_token",
-    };
-
     it("defaults PORT to 3001", () => {
-      const result = envSchema.safeParse(baseEnv);
+      const result = envSchema.safeParse(REQUIRED);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.PORT).toBe(3001);
@@ -41,7 +38,7 @@ describe("envSchema", () => {
     });
 
     it("defaults FRONTEND_URL to http://localhost:5173", () => {
-      const result = envSchema.safeParse(baseEnv);
+      const result = envSchema.safeParse(REQUIRED);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.FRONTEND_URL).toBe("http://localhost:5173");
@@ -49,7 +46,7 @@ describe("envSchema", () => {
     });
 
     it("defaults NODE_ENV to development", () => {
-      const result = envSchema.safeParse(baseEnv);
+      const result = envSchema.safeParse(REQUIRED);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.NODE_ENV).toBe("development");
@@ -59,12 +56,7 @@ describe("envSchema", () => {
 
   describe("PORT coercion", () => {
     it("coerces string PORT to number", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-        PORT: "3001",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, PORT: "3001" });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.PORT).toBe(3001);
@@ -73,12 +65,7 @@ describe("envSchema", () => {
     });
 
     it("coerces a different string port to number", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-        PORT: "8080",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, PORT: "8080" });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.PORT).toBe(8080);
@@ -88,10 +75,8 @@ describe("envSchema", () => {
 
   describe("missing required fields", () => {
     it("fails when DATABASE_URL is missing", () => {
-      const result = envSchema.safeParse({
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-      });
+      const { DATABASE_URL: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
       expect(result.success).toBe(false);
       if (!result.success) {
         const paths = result.error.errors.map((e) => e.path.join("."));
@@ -100,10 +85,8 @@ describe("envSchema", () => {
     });
 
     it("fails when OPENAI_API_KEY is missing", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        GITHUB_TOKEN: "ghp_token",
-      });
+      const { OPENAI_API_KEY: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
       expect(result.success).toBe(false);
       if (!result.success) {
         const paths = result.error.errors.map((e) => e.path.join("."));
@@ -112,10 +95,8 @@ describe("envSchema", () => {
     });
 
     it("fails when GITHUB_TOKEN is missing", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-      });
+      const { GITHUB_TOKEN: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
       expect(result.success).toBe(false);
       if (!result.success) {
         const paths = result.error.errors.map((e) => e.path.join("."));
@@ -123,11 +104,48 @@ describe("envSchema", () => {
       }
     });
 
+    it("fails when GITHUB_CLIENT_ID is missing", () => {
+      const { GITHUB_CLIENT_ID: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.errors.map((e) => e.path.join("."));
+        expect(paths).toContain("GITHUB_CLIENT_ID");
+      }
+    });
+
+    it("fails when GITHUB_CLIENT_SECRET is missing", () => {
+      const { GITHUB_CLIENT_SECRET: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.errors.map((e) => e.path.join("."));
+        expect(paths).toContain("GITHUB_CLIENT_SECRET");
+      }
+    });
+
+    it("fails when SESSION_SECRET is missing", () => {
+      const { SESSION_SECRET: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.errors.map((e) => e.path.join("."));
+        expect(paths).toContain("SESSION_SECRET");
+      }
+    });
+
+    it("fails when SESSION_SECRET is shorter than 32 characters", () => {
+      const result = envSchema.safeParse({ ...REQUIRED, SESSION_SECRET: "short" });
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const paths = result.error.errors.map((e) => e.path.join("."));
+        expect(paths).toContain("SESSION_SECRET");
+      }
+    });
+
     it("provides a descriptive error message for missing DATABASE_URL", () => {
-      const result = envSchema.safeParse({
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-      });
+      const { DATABASE_URL: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
       expect(result.success).toBe(false);
       if (!result.success) {
         const dbError = result.error.errors.find(
@@ -141,71 +159,39 @@ describe("envSchema", () => {
 
   describe("empty string required fields", () => {
     it("fails when DATABASE_URL is empty string", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, DATABASE_URL: "" });
       expect(result.success).toBe(false);
     });
 
     it("fails when OPENAI_API_KEY is empty string", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "",
-        GITHUB_TOKEN: "ghp_token",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, OPENAI_API_KEY: "" });
       expect(result.success).toBe(false);
     });
 
     it("fails when GITHUB_TOKEN is empty string", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, GITHUB_TOKEN: "" });
       expect(result.success).toBe(false);
     });
   });
 
   describe("NODE_ENV validation", () => {
     it("accepts development", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-        NODE_ENV: "development",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, NODE_ENV: "development" });
       expect(result.success).toBe(true);
     });
 
     it("accepts production", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-        NODE_ENV: "production",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, NODE_ENV: "production" });
       expect(result.success).toBe(true);
     });
 
     it("accepts test", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-        NODE_ENV: "test",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, NODE_ENV: "test" });
       expect(result.success).toBe(true);
     });
 
     it("fails with invalid NODE_ENV value", () => {
-      const result = envSchema.safeParse({
-        DATABASE_URL: "postgresql://localhost/testdb",
-        OPENAI_API_KEY: "sk-test",
-        GITHUB_TOKEN: "ghp_token",
-        NODE_ENV: "staging",
-      });
+      const result = envSchema.safeParse({ ...REQUIRED, NODE_ENV: "staging" });
       expect(result.success).toBe(false);
       if (!result.success) {
         const envError = result.error.errors.find(

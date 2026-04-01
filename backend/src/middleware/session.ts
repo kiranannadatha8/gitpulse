@@ -1,7 +1,30 @@
-import { type Request, type Response, type NextFunction } from "express";
-import { v4 as uuidv4 } from "uuid";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import { env } from "../lib/env.js";
 
+const PgStore = connectPgSimple(session);
+
+// Expose the express-session middleware
+export const sessionMiddleware = session({
+  store: new PgStore({
+    conString: env.DATABASE_URL,
+    createTableIfMissing: true,
+    tableName: "sessions",
+  }),
+  secret: env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  name: "connect.sid",
+  cookie: {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    secure: env.NODE_ENV === "production",
+  },
+});
+
+// Augment Express Request with sessionId for backwards compatibility
+// req.sessionId = req.session.id so all existing services continue to work unchanged
 declare global {
   namespace Express {
     interface Request {
@@ -10,29 +33,9 @@ declare global {
   }
 }
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import type { Request, Response, NextFunction } from "express";
 
-export function sessionMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  const existingId = req.cookies?.sessionId as string | undefined;
-
-  if (existingId && UUID_REGEX.test(existingId)) {
-    req.sessionId = existingId;
-  } else {
-    const newId = uuidv4();
-    req.sessionId = newId;
-    res.cookie("sessionId", newId, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: THIRTY_DAYS_MS,
-      secure: env.NODE_ENV === "production",
-    });
-  }
-
+export function attachSessionId(req: Request, _res: Response, next: NextFunction): void {
+  req.sessionId = req.session.id;
   next();
 }

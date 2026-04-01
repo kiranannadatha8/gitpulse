@@ -20,7 +20,7 @@ router.post(
         return;
       }
 
-      const review = await createReview(parsed.data.prUrl, req.sessionId);
+      const review = await createReview(parsed.data.prUrl, req.sessionId, req.user?.id);
       res.status(201).json(review);
     } catch (err) {
       next(err);
@@ -33,7 +33,7 @@ router.get(
   reviewRateLimit,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const reviews = await getReviewsBySession(req.sessionId);
+      const reviews = await getReviewsBySession(req.sessionId, req.user?.id);
       res.status(200).json(reviews);
     } catch (err) {
       next(err);

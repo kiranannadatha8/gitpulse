@@ -1,34 +1,40 @@
 import { useState, useEffect } from "react";
 import { FaGithub } from "react-icons/fa";
-import { LuArrowUpRight } from "react-icons/lu";
 import { useReview } from "../hooks/useReview";
 import { useHistory } from "../hooks/useHistory";
+import { useAuth } from "../hooks/useAuth";
 import { PRInput } from "../components/PRInput";
 import { LoadingState } from "../components/LoadingState";
 import { ReviewCard } from "../components/ReviewCard";
 import { HistorySidebar } from "../components/HistorySidebar";
-import { Button } from "@/components/ui/button";
+import { AuthDialog } from "../components/AuthDialog";
+import { UserMenu } from "../components/UserMenu";
 import { cn } from "@/lib/utils";
 import type { Review } from "../types/review";
 
 const EXAMPLE_PRS = [
   {
     label: "facebook/react/pull/28818",
-    url:   "https://github.com/facebook/react/pull/28818",
+    url: "https://github.com/facebook/react/pull/28818",
   },
   {
     label: "vercel/next.js/pull/67234",
-    url:   "https://github.com/vercel/next.js/pull/67234",
+    url: "https://github.com/vercel/next.js/pull/67234",
   },
   {
     label: "tailwindlabs/tailwindcss/pull/14562",
-    url:   "https://github.com/tailwindlabs/tailwindcss/pull/14562",
+    url: "https://github.com/tailwindlabs/tailwindcss/pull/14562",
   },
 ];
 
 export function Home(): JSX.Element {
   const { submitReview, isPending, isError, error, review } = useReview();
-  const { reviews, isLoading: isHistoryLoading, isError: isHistoryError } = useHistory();
+  const {
+    reviews,
+    isLoading: isHistoryLoading,
+    isError: isHistoryError,
+  } = useHistory();
+  const { isAuthenticated } = useAuth();
 
   const [activeReview, setActiveReview] = useState<Review | null>(null);
 
@@ -39,46 +45,38 @@ export function Home(): JSX.Element {
   const showIdle = !isPending && activeReview === null;
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden" style={{ background: "var(--bg)", fontFamily: "var(--font-ui)" }}>
-
+    <div
+      className="relative min-h-screen overflow-x-hidden"
+      style={{ background: "var(--bg)", fontFamily: "var(--font-ui)" }}
+    >
       {/* ── Ambient glow ── */}
-      <div aria-hidden="true" className="absolute inset-0 flex justify-center pointer-events-none overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 flex justify-center pointer-events-none overflow-hidden"
+      >
         <div className="gp-glow" />
       </div>
 
       {/* ── Header ── */}
       <header className="relative z-10 flex items-center justify-between px-6 py-4">
         {/* Logo */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-[7px] bg-primary flex items-center justify-center shrink-0">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M2.5 4h11M2.5 8h7.5M2.5 12h5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </div>
-          <span className="text-[17px] font-medium text-foreground tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
+        <div className="flex items-center gap-2">
+          <FaGithub size={24} />
+          <span
+            className="text-[17px] font-medium text-foreground tracking-tight"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
             GitPulse
           </span>
         </div>
 
-        {/* GitHub link */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-full gap-1.5 text-muted-foreground text-xs"
-          asChild
-        >
-          <a href="https://github.com/kiranannadatha8/gitpulse" target="_blank" rel="noopener noreferrer">
-            <FaGithub size={13} aria-hidden="true" />
-            GitHub
-            <LuArrowUpRight size={11} aria-hidden="true" />
-          </a>
-        </Button>
+        {/* Auth */}
+        {isAuthenticated ? <UserMenu /> : <AuthDialog />}
       </header>
 
       {/* ── Main ── */}
       <main className="relative z-10 flex flex-col items-center px-4 pt-12 pb-20">
         <div className="w-full max-w-[660px]">
-
           {/* Hero heading */}
           <div className={cn("text-center mb-9", "gp-fade gp-delay-1")}>
             <h1
@@ -136,7 +134,9 @@ export function Home(): JSX.Element {
                     onClick={() => submitReview(ex.url)}
                   >
                     <span>{ex.label}</span>
-                    <span className="text-muted-foreground text-[17px] leading-none">›</span>
+                    <span className="text-muted-foreground text-[17px] leading-none">
+                      ›
+                    </span>
                   </button>
                 ))}
               </div>

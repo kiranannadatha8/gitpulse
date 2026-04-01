@@ -8,9 +8,11 @@ import type { Review } from "../../types/review";
 
 vi.mock("../../hooks/useReview");
 vi.mock("../../hooks/useHistory");
+vi.mock("../../hooks/useAuth");
 
 import * as useReviewModule from "../../hooks/useReview";
 import * as useHistoryModule from "../../hooks/useHistory";
+import * as useAuthModule from "../../hooks/useAuth";
 
 const mockReview: Review = {
   id: "rev-1",
@@ -69,6 +71,14 @@ function setupMocks(overrides?: {
     isLoading: false,
     isError: false,
     ...overrides?.useHistory,
+  });
+
+  vi.mocked(useAuthModule.useAuth).mockReturnValue({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
   });
 }
 

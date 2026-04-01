@@ -10,6 +10,38 @@ vi.mock("../../lib/env.js", () => ({
     PORT: 3001,
     FRONTEND_URL: "http://localhost:5173",
     NODE_ENV: "test",
+    GITHUB_CLIENT_ID: "test-client-id",
+    GITHUB_CLIENT_SECRET: "test-client-secret",
+    SESSION_SECRET: "test-secret-at-least-32-characters-long!",
+  },
+}));
+
+// Mock session middleware to avoid real DB/PG connections
+vi.mock("../../middleware/session.js", () => ({
+  sessionMiddleware: (
+    req: { session?: { id: string } },
+    _res: unknown,
+    next: () => void
+  ) => {
+    req.session = { id: "test-session-uuid" };
+    next();
+  },
+  attachSessionId: (
+    req: { session?: { id: string }; sessionId?: string },
+    _res: unknown,
+    next: () => void
+  ) => {
+    req.sessionId = req.session?.id ?? "test-session-uuid";
+    next();
+  },
+}));
+
+// Mock passport to avoid GitHub OAuth / DB deserialization
+vi.mock("../../lib/passport.js", () => ({
+  default: {
+    initialize: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+    session: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+    authenticate: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   },
 }));
 
@@ -86,9 +118,6 @@ vi.mock("../../services/claude.js", () => ({
   analyzeDiff: vi.fn(),
 }));
 
-vi.mock("uuid", () => ({
-  v4: () => "test-session-uuid",
-}));
 
 import app from "../../app.js";
 import { createReview, getReviewsBySession } from "../../services/review.js";
@@ -128,7 +157,8 @@ describe("POST /api/reviews", () => {
     expect(res.body.prTitle).toBe("Fix auth bug");
     expect(mockCreateReview).toHaveBeenCalledWith(
       "https://github.com/owner/repo/pull/42",
-      expect.any(String)
+      expect.any(String),
+      undefined
     );
   });
 
@@ -163,43 +193,19 @@ describe("POST /api/reviews", () => {
     expect(res.body.error).toContain("URL path must match");
   });
 
-  it("sets sessionId cookie when no cookie is present", async () => {
+  it("passes req.sessionId from session middleware to createReview", async () => {
     mockCreateReview.mockResolvedValue(MOCK_REVIEW as never);
 
-    const res = await request(app)
+    await request(app)
       .post("/api/reviews")
       .send({ prUrl: "https://github.com/owner/repo/pull/42" });
 
-    const setCookieHeader = res.headers["set-cookie"] as string[] | string | undefined;
-    expect(setCookieHeader).toBeDefined();
-    const cookieStr = Array.isArray(setCookieHeader)
-      ? setCookieHeader.join("; ")
-      : setCookieHeader ?? "";
-    expect(cookieStr).toContain("sessionId=test-session-uuid");
-  });
-
-  it("preserves existing sessionId cookie when present", async () => {
-    mockCreateReview.mockResolvedValue(MOCK_REVIEW as never);
-    const existingSessionId = "a1b2c3d4-e5f6-4789-8abc-def012345678";
-
-    const res = await request(app)
-      .post("/api/reviews")
-      .set("Cookie", `sessionId=${existingSessionId}`)
-      .send({ prUrl: "https://github.com/owner/repo/pull/42" });
-
-    expect(res.status).toBe(201);
+    // sessionId comes from the mocked session middleware ("test-session-uuid")
     expect(mockCreateReview).toHaveBeenCalledWith(
       "https://github.com/owner/repo/pull/42",
-      existingSessionId
+      "test-session-uuid",
+      undefined
     );
-    // Should not set a new cookie when one already exists
-    const setCookieHeader = res.headers["set-cookie"] as string[] | string | undefined;
-    if (setCookieHeader) {
-      const cookieStr = Array.isArray(setCookieHeader)
-        ? setCookieHeader.join("; ")
-        : setCookieHeader;
-      expect(cookieStr).not.toContain("sessionId=test-session-uuid");
-    }
   });
 });
 
@@ -220,7 +226,10 @@ describe("GET /api/reviews", () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toHaveLength(2);
-    expect(mockGetReviewsBySession).toHaveBeenCalledWith(sessionId);
+    expect(mockGetReviewsBySession).toHaveBeenCalledWith(
+      "test-session-uuid",
+      undefined
+    );
   });
 
   it("returns 200 with empty array when no reviews exist", async () => {

@@ -7,19 +7,19 @@ import type { Review } from "@prisma/client";
 
 export async function createReview(
   prUrl: string,
-  sessionId: string
+  sessionId: string,
+  userId?: string
 ): Promise<Review> {
   logger.info({ prUrl, sessionId }, "Creating review");
 
   const { owner, repo, prNumber } = parsePRUrl(prUrl);
-
   const prDiff = await fetchPRDiff(owner, repo, prNumber);
-
   const analysis = await analyzeDiff(prDiff.title, prDiff.files);
 
   const review = await prisma.review.create({
     data: {
       sessionId,
+      userId: userId ?? null,
       prUrl,
       prTitle: prDiff.title,
       repoOwner: owner,
@@ -32,20 +32,37 @@ export async function createReview(
   });
 
   logger.info({ reviewId: review.id, prUrl, sessionId }, "Review created");
-
   return review;
 }
 
-export async function getReviewsBySession(sessionId: string): Promise<Review[]> {
+export async function getReviewsBySession(
+  sessionId: string,
+  userId?: string
+): Promise<Review[]> {
   logger.info({ sessionId }, "Fetching reviews by session");
 
+  // When a user is authenticated, return their reviews regardless of session
+  const where = userId
+    ? { userId }
+    : { sessionId };
+
   const reviews = await prisma.review.findMany({
-    where: { sessionId },
+    where,
     orderBy: { createdAt: "desc" },
     take: 50,
   });
 
   logger.info({ sessionId, count: reviews.length }, "Reviews fetched");
-
   return reviews;
+}
+
+export async function migrateSessionReviews(
+  sessionId: string,
+  userId: string
+): Promise<number> {
+  const result = await prisma.review.updateMany({
+    where: { sessionId, userId: null },
+    data: { userId },
+  });
+  return result.count;
 }
