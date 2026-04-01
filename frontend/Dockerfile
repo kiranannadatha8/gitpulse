@@ -6,6 +6,11 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Optional: pass Sentry DSN at build time so it's baked into the bundle
+ARG VITE_SENTRY_DSN=""
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+
 RUN npm run build
 
 # ── Stage 2: Nginx static server ─────────────────────────────────────────────

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 
+// Mock pino-http so it doesn't require a real pino logger instance
+vi.mock("pino-http", () => ({
+  default: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 // Mock env so app.ts can load without real env vars
 vi.mock("../../lib/env.js", () => ({
   env: {

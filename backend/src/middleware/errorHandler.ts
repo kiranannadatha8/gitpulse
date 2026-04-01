@@ -8,14 +8,26 @@ import {
 } from "../services/github.js";
 import { AIParseError } from "../services/openai.js";
 import logger from "../lib/logger.js";
+import { captureError } from "../lib/sentry.js";
 
 export function errorHandler(
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
-  logger.error({ err }, "Request error");
+  // 4xx errors are expected application errors — log at warn, don't report to Sentry
+  const isClientError =
+    err instanceof InvalidPRUrlError ||
+    err instanceof GitHubNotFoundError ||
+    err instanceof ZodError;
+
+  if (isClientError) {
+    logger.warn({ err, path: req.path }, "Client error");
+  } else {
+    logger.error({ err, path: req.path }, "Server error");
+    captureError(err, { path: req.path, method: req.method });
+  }
 
   if (err instanceof InvalidPRUrlError) {
     res.status(400).json({ success: false, error: err.message });

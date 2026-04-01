@@ -1,4 +1,5 @@
 import React from "react";
+import { captureError } from "../lib/sentry";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -19,9 +20,8 @@ export class ErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(_error: Error, _info: React.ErrorInfo): void {
-    // Errors are already captured in state via getDerivedStateFromError.
-    // Wire up error reporting (e.g. Sentry) here in future.
+  componentDidCatch(error: Error, info: React.ErrorInfo): void {
+    captureError(error, { componentStack: info.componentStack ?? "" });
   }
 
   private handleReset = (): void => {

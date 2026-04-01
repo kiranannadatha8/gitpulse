@@ -187,25 +187,30 @@ describe("errorHandler", () => {
     });
   });
 
-  it("calls logger.error for every error type", () => {
-    const errors = [
-      new InvalidPRUrlError("bad url"),
-      new GitHubNotFoundError("not found"),
+  it("calls logger.error for 5xx error types and logger.warn for 4xx client errors", () => {
+    // 5xx server errors — logged via logger.error
+    const serverErrors = [
       new GitHubAuthError("auth fail"),
       new GitHubRateLimitError("rate limit"),
       new AIParseError("parse fail"),
       new Error("generic"),
     ];
+    // 4xx client errors — logged via logger.warn
+    const clientErrors = [
+      new InvalidPRUrlError("bad url"),
+      new GitHubNotFoundError("not found"),
+    ];
 
-    for (const err of errors) {
+    for (const err of [...serverErrors, ...clientErrors]) {
       const res = makeRes();
       errorHandler(err, req, res as unknown as Response, next);
     }
 
-    expect(mockLogger.error).toHaveBeenCalledTimes(errors.length);
+    expect(mockLogger.error).toHaveBeenCalledTimes(serverErrors.length);
+    expect(mockLogger.warn).toHaveBeenCalledTimes(clientErrors.length);
   });
 
-  it("calls logger.error for ZodError", () => {
+  it("calls logger.warn for ZodError (400 client error)", () => {
     const zodErr = (() => {
       try {
         z.string().parse(123);
@@ -218,6 +223,7 @@ describe("errorHandler", () => {
     const res = makeRes();
     errorHandler(zodErr, req, res as unknown as Response, next);
 
-    expect(mockLogger.error).toHaveBeenCalledTimes(1);
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+    expect(mockLogger.error).not.toHaveBeenCalled();
   });
 });

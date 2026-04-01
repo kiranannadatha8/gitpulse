@@ -12,6 +12,9 @@ export const envSchema = z.object({
   FRONTEND_URL: z.string().url().default("http://localhost:5173"),
   BACKEND_URL: z.string().url().default("http://localhost:3001"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  // Observability — optional; features gracefully degrade if unset
+  SENTRY_DSN: z.string().url().optional(),
+  LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
 });
 
 const parsed = envSchema.safeParse(process.env);

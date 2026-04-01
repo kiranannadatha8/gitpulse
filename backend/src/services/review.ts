@@ -10,11 +10,15 @@ export async function createReview(
   sessionId: string,
   userId?: string
 ): Promise<Review> {
+  const start = Date.now();
   logger.info({ prUrl, sessionId }, "Creating review");
 
   const { owner, repo, prNumber } = parsePRUrl(prUrl);
   const prDiff = await fetchPRDiff(owner, repo, prNumber);
+
+  const aiStart = Date.now();
   const analysis = await analyzeDiff(prDiff.title, prDiff.files);
+  const aiDurationMs = Date.now() - aiStart;
 
   const review = await prisma.review.create({
     data: {
@@ -31,7 +35,11 @@ export async function createReview(
     },
   });
 
-  logger.info({ reviewId: review.id, prUrl, sessionId }, "Review created");
+  const totalDurationMs = Date.now() - start;
+  logger.info(
+    { reviewId: review.id, prUrl, sessionId, aiDurationMs, totalDurationMs },
+    "Review created"
+  );
   return review;
 }
 
