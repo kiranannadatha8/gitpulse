@@ -14,7 +14,19 @@ export async function createReview(
   logger.info({ prUrl, sessionId }, "Creating review");
 
   const { owner, repo, prNumber } = parsePRUrl(prUrl);
-  const prDiff = await fetchPRDiff(owner, repo, prNumber);
+
+  // Look up the user's stored OAuth access token so their personal rate limit
+  // is used instead of the shared app installation token.
+  let userAccessToken: string | undefined;
+  if (userId) {
+    const account = await prisma.account.findFirst({
+      where: { userId, provider: "github" },
+      select: { accessToken: true },
+    });
+    userAccessToken = account?.accessToken ?? undefined;
+  }
+
+  const prDiff = await fetchPRDiff(owner, repo, prNumber, userAccessToken);
 
   const aiStart = Date.now();
   const analysis = await analyzeDiff(prDiff.title, prDiff.files);

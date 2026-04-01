@@ -1,35 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// vi.hoisted runs during the hoist phase, before const declarations —
-// this lets the vi.mock factory reference these functions safely.
+// vi.hoisted ensures these are available inside vi.mock factory closures
 const { mockGet, mockListFiles } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockListFiles: vi.fn(),
 }));
 
-// Mock @octokit/rest before importing the module under test.
-// The singleton is constructed at module load time using this mock.
-vi.mock("@octokit/rest", () => ({
-  Octokit: vi.fn(() => ({
-    rest: {
-      pulls: {
-        get: mockGet,
-        listFiles: mockListFiles,
-      },
-    },
-  })),
+const mockOctokitInstance = {
+  rest: { pulls: { get: mockGet, listFiles: mockListFiles } },
+};
+
+// Mock githubApp.ts so we can control which Octokit instance is returned
+// and assert which auth strategy was selected.
+vi.mock("../../lib/githubApp.js", () => ({
+  createAppOctokit: vi.fn(() => mockOctokitInstance),
+  createUserOctokit: vi.fn((_token: string) => mockOctokitInstance),
 }));
 
-vi.mock("../../lib/env.js", () => ({
-  env: {
-    GITHUB_TOKEN: "test-token",
-    OPENAI_API_KEY: "test-key",
-    DATABASE_URL: "postgresql://localhost/test",
-    PORT: 3001,
-    FRONTEND_URL: "http://localhost:5173",
-    NODE_ENV: "test",
-  },
-}));
+import { createAppOctokit, createUserOctokit } from "../../lib/githubApp.js";
 
 import {
   fetchPRDiff,
@@ -124,5 +112,25 @@ describe("fetchPRDiff", () => {
     expect(new GitHubNotFoundError("msg").name).toBe("GitHubNotFoundError");
     expect(new GitHubAuthError("msg").name).toBe("GitHubAuthError");
     expect(new GitHubRateLimitError("msg").name).toBe("GitHubRateLimitError");
+  });
+});
+
+describe("fetchPRDiff auth strategy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGet.mockResolvedValue({ data: { title: "PR" } });
+    mockListFiles.mockResolvedValue({ data: [] });
+  });
+
+  it("uses createAppOctokit when no user token is provided", async () => {
+    await fetchPRDiff("owner", "repo", 1);
+    expect(createAppOctokit).toHaveBeenCalledOnce();
+    expect(createUserOctokit).not.toHaveBeenCalled();
+  });
+
+  it("uses createUserOctokit with the provided token", async () => {
+    await fetchPRDiff("owner", "repo", 1, "user-oauth-token");
+    expect(createUserOctokit).toHaveBeenCalledWith("user-oauth-token");
+    expect(createAppOctokit).not.toHaveBeenCalled();
   });
 });

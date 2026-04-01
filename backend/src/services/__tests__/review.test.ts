@@ -49,6 +49,10 @@ vi.mock("../../lib/prisma.js", () => ({
       create: vi.fn(),
       findMany: vi.fn(),
       updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    account: {
+      findFirst: vi.fn().mockResolvedValue(null), // no token by default
     },
   },
 }));
@@ -65,6 +69,7 @@ const mockAnalyzeDiff = vi.mocked(analyzeDiff);
 const mockPrismaCreate = vi.mocked(prisma.review.create);
 const mockPrismaFindMany = vi.mocked(prisma.review.findMany);
 const mockPrismaUpdateMany = vi.mocked(prisma.review.updateMany);
+const mockAccountFindFirst = vi.mocked(prisma.account.findFirst);
 
 const MOCK_PR_URL = "https://github.com/owner/repo/pull/42";
 const MOCK_SESSION_ID = "session-abc-123";
@@ -128,7 +133,8 @@ describe("createReview", () => {
     const result = await createReview(MOCK_PR_URL, MOCK_SESSION_ID);
 
     expect(mockParsePRUrl).toHaveBeenCalledWith(MOCK_PR_URL);
-    expect(mockFetchPRDiff).toHaveBeenCalledWith("owner", "repo", 42);
+    // No userId → account lookup skipped → userAccessToken is undefined
+    expect(mockFetchPRDiff).toHaveBeenCalledWith("owner", "repo", 42, undefined);
     expect(mockAnalyzeDiff).toHaveBeenCalledWith(
       MOCK_DIFF.title,
       MOCK_DIFF.files
@@ -264,6 +270,7 @@ describe("createReview with userId", () => {
     mockFetchPRDiff.mockResolvedValue(MOCK_DIFF);
     mockAnalyzeDiff.mockResolvedValue(MOCK_ANALYSIS);
     mockPrismaCreate.mockResolvedValue(MOCK_REVIEW_RECORD as never);
+    mockAccountFindFirst.mockResolvedValue(null);
 
     await createReview(MOCK_PR_URL, MOCK_SESSION_ID, userId);
 
@@ -283,6 +290,36 @@ describe("createReview with userId", () => {
     expect(mockPrismaCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ userId: null }),
     });
+  });
+
+  it("looks up the user's OAuth token and passes it to fetchPRDiff", async () => {
+    const userId = "user-uuid-xyz";
+    mockParsePRUrl.mockReturnValue(MOCK_PARSED);
+    mockFetchPRDiff.mockResolvedValue(MOCK_DIFF);
+    mockAnalyzeDiff.mockResolvedValue(MOCK_ANALYSIS);
+    mockPrismaCreate.mockResolvedValue(MOCK_REVIEW_RECORD as never);
+    mockAccountFindFirst.mockResolvedValue({ accessToken: "gho_usertoken" } as never);
+
+    await createReview(MOCK_PR_URL, MOCK_SESSION_ID, userId);
+
+    expect(mockAccountFindFirst).toHaveBeenCalledWith({
+      where: { userId, provider: "github" },
+      select: { accessToken: true },
+    });
+    expect(mockFetchPRDiff).toHaveBeenCalledWith("owner", "repo", 42, "gho_usertoken");
+  });
+
+  it("passes undefined token to fetchPRDiff when account has no stored token", async () => {
+    const userId = "user-uuid-xyz";
+    mockParsePRUrl.mockReturnValue(MOCK_PARSED);
+    mockFetchPRDiff.mockResolvedValue(MOCK_DIFF);
+    mockAnalyzeDiff.mockResolvedValue(MOCK_ANALYSIS);
+    mockPrismaCreate.mockResolvedValue(MOCK_REVIEW_RECORD as never);
+    mockAccountFindFirst.mockResolvedValue(null);
+
+    await createReview(MOCK_PR_URL, MOCK_SESSION_ID, userId);
+
+    expect(mockFetchPRDiff).toHaveBeenCalledWith("owner", "repo", 42, undefined);
   });
 });
 

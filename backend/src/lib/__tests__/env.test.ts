@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { envSchema } from "../env.js";
 
+// GITHUB_TOKEN is now optional (deprecated fallback for GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY).
+// We include it here so that the schema parse succeeds without setting up a full App config.
 const REQUIRED = {
   DATABASE_URL: "postgresql://user:pass@localhost:5432/db",
   OPENAI_API_KEY: "sk-test-key",
@@ -94,14 +96,13 @@ describe("envSchema", () => {
       }
     });
 
-    it("fails when GITHUB_TOKEN is missing", () => {
+    it("succeeds when GITHUB_TOKEN is omitted (it is now optional)", () => {
+      // GITHUB_TOKEN is the deprecated PAT fallback; schema accepts its absence.
+      // (The runtime startup guard in env.ts still throws if neither App nor PAT is set,
+      // but that guard is not part of the Zod schema.)
       const { GITHUB_TOKEN: _, ...rest } = REQUIRED;
       const result = envSchema.safeParse(rest);
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        const paths = result.error.errors.map((e) => e.path.join("."));
-        expect(paths).toContain("GITHUB_TOKEN");
-      }
+      expect(result.success).toBe(true);
     });
 
     it("fails when GITHUB_CLIENT_ID is missing", () => {
@@ -168,9 +169,10 @@ describe("envSchema", () => {
       expect(result.success).toBe(false);
     });
 
-    it("fails when GITHUB_TOKEN is empty string", () => {
-      const result = envSchema.safeParse({ ...REQUIRED, GITHUB_TOKEN: "" });
-      expect(result.success).toBe(false);
+    it("accepts when GITHUB_TOKEN is omitted (optional field)", () => {
+      const { GITHUB_TOKEN: _, ...rest } = REQUIRED;
+      const result = envSchema.safeParse(rest);
+      expect(result.success).toBe(true);
     });
   });
 

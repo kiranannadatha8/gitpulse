@@ -1,5 +1,5 @@
-import { Octokit } from "@octokit/rest";
-import { env } from "../lib/env.js";
+import type { Octokit } from "@octokit/rest";
+import { createAppOctokit, createUserOctokit } from "../lib/githubApp.js";
 import logger from "../lib/logger.js";
 
 export class GitHubNotFoundError extends Error {
@@ -30,9 +30,6 @@ export interface PRDiff {
   title: string;
   files: Array<{ filename: string; status: string; patch: string | undefined }>;
 }
-
-// Singleton — reuses connection pool across requests
-const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
 
 // Named MAX_DIFF_CHARS — measures JS string length (UTF-16 code units), not bytes
 const MAX_DIFF_CHARS = 100_000;
@@ -79,12 +76,26 @@ function mapOctokitError(error: unknown): never {
   throw new Error(`GitHub API error (${status ?? "unknown"}): ${message}`);
 }
 
+/**
+ * Fetches the PR title and per-file diffs.
+ *
+ * Auth strategy (in priority order):
+ *  1. `userAccessToken` — the authenticated user's stored OAuth token.
+ *     Each user gets an independent 5 000 req/hr rate limit.
+ *  2. GitHub App installation token — for anonymous requests.
+ *     Higher rate limits than a shared PAT; tokens are short-lived and auto-rotated.
+ */
 export async function fetchPRDiff(
   owner: string,
   repo: string,
-  prNumber: number
+  prNumber: number,
+  userAccessToken?: string
 ): Promise<PRDiff> {
   logger.info({ owner, repo, prNumber }, "Fetching PR diff from GitHub");
+
+  const octokit: Octokit = userAccessToken
+    ? createUserOctokit(userAccessToken)
+    : createAppOctokit();
 
   let title: string;
   let rawFiles: Array<{ filename: string; status: string; patch?: string }>;
