@@ -10,12 +10,25 @@ import { AIParseError } from "../services/openai.js";
 import logger from "../lib/logger.js";
 import { captureError } from "../lib/sentry.js";
 
+interface BodyParserError extends Error {
+  status?: number;
+  type?: string;
+}
+
 export function errorHandler(
   err: Error,
   req: Request,
   res: Response,
   _next: NextFunction
 ): void {
+  // Handle body-parser payload-too-large errors (express.json limit)
+  const bodyParserErr = err as BodyParserError;
+  if (bodyParserErr.status === 413 || bodyParserErr.type === "entity.too.large") {
+    logger.warn({ path: req.path }, "Payload too large");
+    res.status(413).json({ success: false, error: "Request body too large." });
+    return;
+  }
+
   // 4xx errors are expected application errors — log at warn, don't report to Sentry
   const isClientError =
     err instanceof InvalidPRUrlError ||

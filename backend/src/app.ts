@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import express, { type Request, type Response } from "express";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -43,9 +44,30 @@ app.use(
   })
 );
 
+// ── Security headers (Helmet) ─────────────────────────────────────────────────
+// This is a pure JSON API — no HTML is rendered, so CSP is minimal.
+// Helmet still enforces HSTS, X-Content-Type-Options, X-Frame-Options, etc.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+    // Prevent embedding in iframes
+    frameguard: { action: "deny" },
+    // HSTS: tell browsers to use HTTPS for 1 year (production only)
+    strictTransportSecurity: env.NODE_ENV === "production"
+      ? { maxAge: 31536000, includeSubDomains: true }
+      : false,
+  })
+);
+
 // ── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
-app.use(express.json());
+// Limit request body to 100 KB to prevent oversized payload DoS
+app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
 
 // ── Session + Passport (order matters) ───────────────────────────────────────

@@ -3,8 +3,12 @@ import passport from "../lib/passport.js";
 import { env } from "../lib/env.js";
 import { migrateSessionReviews } from "../services/review.js";
 import logger from "../lib/logger.js";
+import { authRateLimit } from "../middleware/rateLimit.js";
 
 const router = Router();
+
+// Apply rate limit to all auth routes
+router.use(authRateLimit);
 
 // Redirect to GitHub OAuth
 router.get(
