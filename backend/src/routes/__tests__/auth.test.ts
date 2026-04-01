@@ -23,9 +23,33 @@ vi.mock("../../lib/logger.js", () => ({
   default: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
-// Mock migrateSessionReviews from review service
+// Mock review service
 vi.mock("../../services/review.js", () => ({
   migrateSessionReviews: vi.fn().mockResolvedValue(0),
+  deleteUserReviews: vi.fn().mockResolvedValue(3),
+}));
+
+// Mock prisma for account data export and user deletion
+vi.mock("../../lib/prisma.js", () => ({
+  prisma: {
+    user: {
+      findUniqueOrThrow: vi.fn().mockResolvedValue({
+        id: "user-uuid-123",
+        username: "testuser",
+        displayName: "Test User",
+        email: "test@example.com",
+        avatarUrl: "https://avatars.githubusercontent.com/u/1",
+        createdAt: new Date("2026-01-01"),
+        updatedAt: new Date("2026-01-01"),
+      }),
+      delete: vi.fn().mockResolvedValue({}),
+    },
+    review: {
+      findMany: vi.fn().mockResolvedValue([
+        { id: "rev-1", prUrl: "https://github.com/org/repo/pull/1", summary: "ok" },
+      ]),
+    },
+  },
 }));
 
 // Mock passport — authenticate redirects are not tested here (OAuth flow)
@@ -41,9 +65,12 @@ vi.mock("../../lib/passport.js", () => ({
 }));
 
 import authRouter from "../auth.js";
-import { migrateSessionReviews } from "../../services/review.js";
+import { migrateSessionReviews, deleteUserReviews } from "../../services/review.js";
+import { prisma } from "../../lib/prisma.js";
 
 const mockMigrateSessionReviews = vi.mocked(migrateSessionReviews);
+const mockDeleteUserReviews = vi.mocked(deleteUserReviews);
+const mockPrisma = vi.mocked(prisma);
 
 /** Build a minimal Express app that injects `user` and `session` onto req */
 function buildApp(user?: {
@@ -159,5 +186,61 @@ describe("GET /api/auth/github/callback — review migration", () => {
     await request(app).get("/api/auth/github/callback");
 
     expect(mockMigrateSessionReviews).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/auth/account/data", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns 401 when not authenticated", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/auth/account/data");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns user profile and reviews when authenticated", async () => {
+    const app = buildApp(MOCK_USER);
+    const res = await request(app).get("/api/auth/account/data");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("exportedAt");
+    expect(res.body.user).toMatchObject({
+      id: MOCK_USER.id,
+      username: MOCK_USER.username,
+    });
+    expect(Array.isArray(res.body.reviews)).toBe(true);
+    expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: MOCK_USER.id },
+    });
+  });
+
+  it("does not expose user.updatedAt or githubId in export", async () => {
+    const app = buildApp(MOCK_USER);
+    const res = await request(app).get("/api/auth/account/data");
+
+    expect(res.body.user).not.toHaveProperty("githubId");
+    expect(res.body.user).not.toHaveProperty("updatedAt");
+  });
+});
+
+describe("DELETE /api/auth/account", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns 401 when not authenticated", async () => {
+    const app = buildApp();
+    const res = await request(app).delete("/api/auth/account");
+    expect(res.status).toBe(401);
+  });
+
+  it("deletes reviews and user then returns success", async () => {
+    const app = buildApp(MOCK_USER);
+    const res = await request(app).delete("/api/auth/account");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true });
+    expect(mockDeleteUserReviews).toHaveBeenCalledWith(MOCK_USER.id);
+    expect(mockPrisma.user.delete).toHaveBeenCalledWith({
+      where: { id: MOCK_USER.id },
+    });
   });
 });

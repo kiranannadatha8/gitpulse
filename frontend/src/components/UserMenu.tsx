@@ -1,4 +1,5 @@
-import { LuLogOut, LuUser } from "react-icons/lu";
+import { useState } from "react";
+import { LuLogOut, LuUser, LuDownload, LuTrash2 } from "react-icons/lu";
 import { useAuth } from "../hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -9,9 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { exportAccountData, deleteAccount } from "../lib/api";
 
 export function UserMenu(): JSX.Element {
   const { user, logout } = useAuth();
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const displayName = user?.displayName ?? user?.username ?? "User";
   const initials = displayName
@@ -20,6 +24,38 @@ export function UserMenu(): JSX.Element {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  async function handleExport(): Promise<void> {
+    setIsExporting(true);
+    try {
+      const blob = await exportAccountData();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gitpulse-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleDeleteAccount(): Promise<void> {
+    if (
+      !window.confirm(
+        "Permanently delete your account and all reviews? This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteAccount();
+      window.location.reload();
+    } catch {
+      setIsDeleting(false);
+    }
+  }
 
   return (
     <DropdownMenu>
@@ -47,6 +83,23 @@ export function UserMenu(): JSX.Element {
             )}
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="gap-2 text-[13px] cursor-pointer"
+          onSelect={() => void handleExport()}
+          disabled={isExporting}
+        >
+          <LuDownload size={13} aria-hidden="true" />
+          {isExporting ? "Exporting…" : "Download my data"}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className="gap-2 text-[13px] cursor-pointer text-destructive focus:text-destructive"
+          onSelect={() => void handleDeleteAccount()}
+          disabled={isDeleting}
+        >
+          <LuTrash2 size={13} aria-hidden="true" />
+          {isDeleting ? "Deleting…" : "Delete account"}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="gap-2 text-[13px] cursor-pointer"

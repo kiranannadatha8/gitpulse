@@ -26,3 +26,16 @@ export async function logoutUser(): Promise<void> {
 export function getGitHubLoginUrl(): string {
   return "/api/auth/github";
 }
+
+export async function exportAccountData(): Promise<Blob> {
+  const response = await client.get("/auth/account/data", {
+    responseType: "json",
+  });
+  return new Blob([JSON.stringify(response.data, null, 2)], {
+    type: "application/json",
+  });
+}
+
+export async function deleteAccount(): Promise<void> {
+  await client.delete("/auth/account");
+}

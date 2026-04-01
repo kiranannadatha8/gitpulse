@@ -9,6 +9,9 @@ import { ReviewCard } from "../components/ReviewCard";
 import { HistorySidebar } from "../components/HistorySidebar";
 import { AuthDialog } from "../components/AuthDialog";
 import { UserMenu } from "../components/UserMenu";
+import { PrivacyDialog } from "../components/PrivacyDialog";
+import { TermsDialog } from "../components/TermsDialog";
+import { CookieBanner } from "../components/CookieBanner";
 import { cn } from "@/lib/utils";
 import type { Review } from "../types/review";
 
@@ -175,11 +178,25 @@ export function Home(): JSX.Element {
           </a>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>Privacy</span>
+          <PrivacyDialog
+            trigger={
+              <button type="button" className="hover:text-foreground transition-colors">
+                Privacy
+              </button>
+            }
+          />
           <span className="opacity-30">/</span>
-          <span>Terms</span>
+          <TermsDialog
+            trigger={
+              <button type="button" className="hover:text-foreground transition-colors">
+                Terms
+              </button>
+            }
+          />
         </div>
       </footer>
+
+      <CookieBanner />
     </div>
   );
 }

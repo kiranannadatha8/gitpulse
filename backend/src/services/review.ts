@@ -74,3 +74,8 @@ export async function migrateSessionReviews(
   });
   return result.count;
 }
+
+export async function deleteUserReviews(userId: string): Promise<number> {
+  const result = await prisma.review.deleteMany({ where: { userId } });
+  return result.count;
+}
