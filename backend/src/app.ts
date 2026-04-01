@@ -2,6 +2,7 @@ import express, { type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { env } from "./lib/env.js";
+import { prisma } from "./lib/prisma.js";
 import { sessionMiddleware, attachSessionId } from "./middleware/session.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import reviewsRouter from "./routes/reviews.js";
@@ -25,8 +26,13 @@ app.use(attachSessionId);
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", db: "ok", timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "error", db: "unreachable", timestamp: new Date().toISOString() });
+  }
 });
 
 app.use("/api/auth", authRouter);
