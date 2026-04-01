@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaGithub } from "react-icons/fa";
 import { useAuth } from "../hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,13 @@ import {
 } from "@/components/ui/dialog";
 
 export function AuthDialog(): JSX.Element {
-  const { login } = useAuth();
+  const { login, authError } = useAuth();
   const [open, setOpen] = useState(false);
+
+  // Auto-open when redirected back with ?auth_error=true
+  useEffect(() => {
+    if (authError) setOpen(true);
+  }, [authError]);
 
   function handleLogin() {
     setOpen(false);
@@ -53,6 +58,15 @@ export function AuthDialog(): JSX.Element {
         </DialogHeader>
 
         <div className="mt-4">
+          {authError && (
+            <p
+              role="alert"
+              className="mb-3 text-[12px] text-destructive text-center"
+            >
+              Sign-in failed. Please try again.
+            </p>
+          )}
+
           <Button
             className="w-full gap-2"
             onClick={handleLogin}

@@ -13,7 +13,11 @@ export const sessionMiddleware = session({
   }),
   secret: env.SESSION_SECRET,
   resave: false,
-  saveUninitialized: false,
+  // Must be true so anonymous users get a persistent session cookie.
+  // Without this, unmodified sessions are not saved and the Set-Cookie header
+  // is never sent, causing every anonymous request to get a new session ID
+  // and making review history unretrievable for unauthenticated users.
+  saveUninitialized: true,
   name: "connect.sid",
   cookie: {
     httpOnly: true,

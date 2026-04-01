@@ -1,4 +1,4 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchCurrentUser, logoutUser, getGitHubLoginUrl } from "../lib/api";
 import type { User } from "../types/user";
@@ -7,6 +7,7 @@ interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  authError: boolean;
   login: () => void;
   logout: () => Promise<void>;
 }
@@ -15,6 +16,17 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const [authError, setAuthError] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("auth_error") === "true") {
+      setAuthError(true);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("auth_error");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   const { data: user = null, isLoading } = useQuery({
     queryKey: ["currentUser"],
@@ -24,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   function login() {
+    setAuthError(false);
     window.location.href = getGitHubLoginUrl();
   }
 
@@ -39,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: user !== null,
         isLoading,
+        authError,
         login,
         logout,
       }}

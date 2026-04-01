@@ -22,7 +22,7 @@ passport.use(
     {
       clientID: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET,
-      callbackURL: `http://localhost:${env.PORT}/api/auth/github/callback`,
+      callbackURL: `${env.BACKEND_URL}/api/auth/github/callback`,
       scope: ["read:user", "user:email"],
     },
     async (
