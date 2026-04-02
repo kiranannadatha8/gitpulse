@@ -1,5 +1,6 @@
 export interface Comment {
   line: number | null;
+  category: "bug" | "security" | "performance" | "style" | "test" | "docs" | "other";
   severity: "info" | "warning" | "error" | "critical";
   message: string;
   suggestion: string | null;
@@ -19,6 +20,7 @@ export interface Review {
   repoName: string;
   prNumber: number;
   summary: string;
+  keyChanges: string[];
   fileReviews: FileReview[];
   riskLevel: "low" | "medium" | "high" | "critical";
   createdAt: string;

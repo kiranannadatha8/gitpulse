@@ -42,6 +42,7 @@ model Review {
   repoName    String
   prNumber    Int
   summary     String   @db.Text
+  keyChanges  Json     @default("[]")
   fileReviews Json
   riskLevel   String
   createdAt   DateTime @default(now())

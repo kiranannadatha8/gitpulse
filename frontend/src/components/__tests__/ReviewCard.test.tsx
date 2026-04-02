@@ -13,18 +13,21 @@ const baseReview: Review = {
   repoName: "repo",
   prNumber: 1,
   summary: "Overall this PR looks solid with minor issues.",
+  keyChanges: ["Add awesome feature", "Update tests"],
   fileReviews: [
     {
       filename: "src/utils.ts",
       comments: [
         {
           line: 10,
+          category: "style",
           severity: "warning",
           message: "Consider extracting this logic",
           suggestion: "Extract to a separate helper function",
         },
         {
           line: null,
+          category: "other",
           severity: "info",
           message: "Good use of types here",
           suggestion: null,
@@ -36,6 +39,7 @@ const baseReview: Review = {
       comments: [
         {
           line: 5,
+          category: "bug",
           severity: "error",
           message: "Missing error handling",
           suggestion: null,
@@ -125,6 +129,26 @@ describe("ReviewCard", () => {
     expect(
       screen.getByText("Consider extracting this logic")
     ).toBeInTheDocument();
+  });
+
+  it("renders key changes bullet list", () => {
+    render(<ReviewCard review={baseReview} />);
+    const list = screen.getByTestId("key-changes");
+    expect(list).toBeInTheDocument();
+    expect(screen.getByText("Add awesome feature")).toBeInTheDocument();
+    expect(screen.getByText("Update tests")).toBeInTheDocument();
+  });
+
+  it("does not render key changes section when keyChanges is empty", () => {
+    const review = { ...baseReview, keyChanges: [] };
+    render(<ReviewCard review={review} />);
+    expect(screen.queryByTestId("key-changes")).not.toBeInTheDocument();
+  });
+
+  it("renders category badges on comments", () => {
+    render(<ReviewCard review={baseReview} />);
+    expect(screen.getByText("style")).toBeInTheDocument();
+    expect(screen.getByText("bug")).toBeInTheDocument();
   });
 
   it("renders green color class for low risk level", () => {

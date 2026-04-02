@@ -5,6 +5,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Review, FileReview, Comment } from "../types/review";
 
+const CATEGORY_BADGE_CLASSES: Record<Comment["category"], string> = {
+  bug:         "bg-red-100 text-red-800 border-red-200",
+  security:    "bg-purple-100 text-purple-800 border-purple-200",
+  performance: "bg-orange-100 text-orange-800 border-orange-200",
+  style:       "bg-slate-100 text-slate-700 border-slate-200",
+  test:        "bg-teal-100 text-teal-800 border-teal-200",
+  docs:        "bg-sky-100 text-sky-800 border-sky-200",
+  other:       "bg-gray-100 text-gray-700 border-gray-200",
+};
+
 // Tailwind color classes — tests assert badge className contains "green", "yellow", etc.
 const RISK_BADGE_CLASSES: Record<Review["riskLevel"], string> = {
   low:      "bg-green-100 text-green-800 border-green-200",
@@ -68,7 +78,15 @@ function FileReviewSection({ fileReview }: FileReviewSectionProps): JSX.Element 
                 idx > 0 && "border-t border-border"
               )}
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge
+                  className={cn(
+                    "text-[11px] rounded",
+                    CATEGORY_BADGE_CLASSES[comment.category]
+                  )}
+                >
+                  {comment.category}
+                </Badge>
                 <Badge
                   className={cn(
                     "text-[11px] rounded",
@@ -141,6 +159,25 @@ export function ReviewCard({ review }: ReviewCardProps): JSX.Element {
         >
           {review.summary}
         </p>
+
+        {/* Key changes */}
+        {review.keyChanges && review.keyChanges.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-medium tracking-widest uppercase text-muted-foreground">
+              Key Changes
+            </p>
+            <ul
+              data-testid="key-changes"
+              className="flex flex-col gap-1 pl-4 list-disc"
+            >
+              {review.keyChanges.map((change, idx) => (
+                <li key={idx} className="text-[13px] text-foreground leading-relaxed">
+                  {change}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* File reviews */}
         {review.fileReviews.length > 0 && (

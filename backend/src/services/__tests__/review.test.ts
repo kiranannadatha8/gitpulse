@@ -82,6 +82,7 @@ const MOCK_PARSED = {
 
 const MOCK_DIFF = {
   title: "Fix critical bug",
+  body: "Fixes the critical bug by updating the auth flow.",
   files: [
     { filename: "src/index.ts", status: "modified", patch: "- bad\n+ good" },
   ],
@@ -89,6 +90,7 @@ const MOCK_DIFF = {
 
 const MOCK_ANALYSIS = {
   summary: "This is a solid fix.",
+  keyChanges: ["Fix critical bug", "Update tests"],
   riskLevel: "low" as const,
   fileReviews: [
     {
@@ -96,6 +98,7 @@ const MOCK_ANALYSIS = {
       comments: [
         {
           line: 5,
+          category: "bug" as const,
           severity: "info" as const,
           message: "Good refactor",
           suggestion: null,
@@ -137,6 +140,7 @@ describe("createReview", () => {
     expect(mockFetchPRDiff).toHaveBeenCalledWith("owner", "repo", 42, undefined);
     expect(mockAnalyzeDiff).toHaveBeenCalledWith(
       MOCK_DIFF.title,
+      MOCK_DIFF.body,
       MOCK_DIFF.files
     );
     expect(mockPrismaCreate).toHaveBeenCalledWith({
@@ -148,6 +152,7 @@ describe("createReview", () => {
         repoName: MOCK_PARSED.repo,
         prNumber: MOCK_PARSED.prNumber,
         summary: MOCK_ANALYSIS.summary,
+        keyChanges: MOCK_ANALYSIS.keyChanges,
         riskLevel: MOCK_ANALYSIS.riskLevel,
       }),
     });

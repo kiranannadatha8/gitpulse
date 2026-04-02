@@ -29,7 +29,7 @@ export async function createReview(
   const prDiff = await fetchPRDiff(owner, repo, prNumber, userAccessToken);
 
   const aiStart = Date.now();
-  const analysis = await analyzeDiff(prDiff.title, prDiff.files);
+  const analysis = await analyzeDiff(prDiff.title, prDiff.body, prDiff.files);
   const aiDurationMs = Date.now() - aiStart;
 
   const review = await prisma.review.create({
@@ -42,6 +42,7 @@ export async function createReview(
       repoName: repo,
       prNumber,
       summary: analysis.summary,
+      keyChanges: analysis.keyChanges,
       fileReviews: analysis.fileReviews,
       riskLevel: analysis.riskLevel,
     },

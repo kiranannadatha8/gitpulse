@@ -11,6 +11,7 @@ export type ReviewRequest = z.infer<typeof ReviewRequestSchema>;
 // Shape of a single review comment
 export const CommentSchema = z.object({
   line: z.number().int().nullable(),
+  category: z.enum(["bug", "security", "performance", "style", "test", "docs", "other"]),
   severity: z.enum(["info", "warning", "error", "critical"]),
   message: z.string().min(1),
   suggestion: z.string().nullable(),
@@ -29,6 +30,8 @@ export type FileReview = z.infer<typeof FileReviewSchema>;
 // Shape the AI model must return (for validation)
 export const AIResponseSchema = z.object({
   summary: z.string().min(1),
+  // 2-6 concise bullet points summarising the key changes in the PR
+  keyChanges: z.array(z.string().min(1)).min(1).max(7),
   riskLevel: z.enum(["low", "medium", "high", "critical"]),
   fileReviews: z.array(FileReviewSchema),
 });
@@ -45,6 +48,7 @@ export const ReviewResponseSchema = z.object({
   repoName: z.string(),
   prNumber: z.number().int().positive(),
   summary: z.string(),
+  keyChanges: z.array(z.string()),
   fileReviews: z.array(FileReviewSchema),
   riskLevel: z.enum(["low", "medium", "high", "critical"]),
   createdAt: z.string().datetime(),

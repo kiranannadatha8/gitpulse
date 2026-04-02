@@ -28,6 +28,8 @@ export class GitHubRateLimitError extends Error {
 
 export interface PRDiff {
   title: string;
+  /** PR description / body text (may be null if the author left it blank) */
+  body: string | null;
   files: Array<{ filename: string; status: string; patch: string | undefined }>;
 }
 
@@ -98,11 +100,13 @@ export async function fetchPRDiff(
     : createAppOctokit();
 
   let title: string;
+  let body: string | null = null;
   let rawFiles: Array<{ filename: string; status: string; patch?: string }>;
 
   try {
     const { data } = await octokit.rest.pulls.get({ owner, repo, pull_number: prNumber });
     title = data.title;
+    body = data.body ?? null;
   } catch (error) {
     mapOctokitError(error);
   }
@@ -128,5 +132,5 @@ export async function fetchPRDiff(
 
   logger.info({ owner, repo, prNumber, fileCount: files.length }, "PR diff fetched");
 
-  return { title: title!, files };
+  return { title: title!, body, files };
 }

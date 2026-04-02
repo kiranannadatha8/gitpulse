@@ -13,60 +13,106 @@ export class AIParseError extends Error {
   }
 }
 
-const SYSTEM_PROMPT = `You are an expert code reviewer. Analyze the provided GitHub pull request diff and return a structured JSON review.
+const SYSTEM_PROMPT = `You are an expert code reviewer. Analyze the provided GitHub pull request and return a structured JSON review.
 
-Your response MUST be valid JSON matching this exact schema:
-{
-  "summary": "string — overall summary of the PR",
-  "riskLevel": "low" | "medium" | "high" | "critical",
-  "fileReviews": [
-    {
-      "filename": "string",
-      "comments": [
-        {
-          "line": number | null,
-          "severity": "info" | "warning" | "error" | "critical",
-          "message": "string",
-          "suggestion": "string | null"
-        }
-      ]
-    }
-  ]
-}
+Priority order for issues:
+1. Security vulnerabilities (authentication, injection, data exposure)
+2. Correctness bugs (logic errors, null dereferences, off-by-one)
+3. Performance problems (N+1 queries, unnecessary re-renders, memory leaks)
+4. Maintainability concerns (complex logic, missing tests, poor naming)
+5. Style issues (formatting, conventions) — only note if significant
 
-Return ONLY valid JSON — no markdown, no code fences, no explanation outside the JSON.`;
+For each comment, assign a category:
+- "bug": logic errors, incorrect behavior
+- "security": auth, injection, data exposure, CSRF, XSS
+- "performance": slow queries, inefficient algorithms, memory leaks
+- "style": formatting, naming, conventions
+- "test": missing or incorrect tests
+- "docs": missing or outdated documentation
+- "other": anything that doesn't fit above
 
-const RETRY_SYSTEM_PROMPT = `You are an expert code reviewer. Your previous response was not valid JSON.
+Be specific and actionable. Include line numbers where applicable. Skip nitpicks.`;
 
-You MUST return ONLY a valid JSON object matching this EXACT schema — no markdown, no backticks, no extra text:
-
-{
-  "summary": "Brief overall summary of the PR",
-  "riskLevel": "low",
-  "fileReviews": [
-    {
-      "filename": "example.ts",
-      "comments": [
-        {
-          "line": 10,
-          "severity": "warning",
-          "message": "Describe the issue here",
-          "suggestion": "Describe the fix here or null"
-        }
-      ]
-    }
-  ]
-}
-
-Valid values for riskLevel: "low", "medium", "high", "critical"
-Valid values for severity: "info", "warning", "error", "critical"
-
-Return ONLY the JSON object. Start your response with { and end with }.`;
+// Typed as the json_schema object OpenAI expects
+const REVIEW_JSON_SCHEMA: OpenAI.ResponseFormatJSONSchema["json_schema"] = {
+  name: "pr_review",
+  strict: true,
+  schema: {
+    type: "object",
+    properties: {
+      summary: {
+        type: "string",
+        description: "Overall summary of the PR — what it does and key observations",
+      },
+      keyChanges: {
+        type: "array",
+        description: "2–6 concise bullet points summarising the key changes in this PR",
+        items: { type: "string" },
+        minItems: 1,
+        maxItems: 6,
+      },
+      riskLevel: {
+        type: "string",
+        enum: ["low", "medium", "high", "critical"],
+        description: "Overall risk level of merging this PR",
+      },
+      fileReviews: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            filename: { type: "string" },
+            comments: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  line: {
+                    type: ["integer", "null"],
+                    description: "Line number in the diff, or null if not line-specific",
+                  },
+                  category: {
+                    type: "string",
+                    enum: ["bug", "security", "performance", "style", "test", "docs", "other"],
+                  },
+                  severity: {
+                    type: "string",
+                    enum: ["info", "warning", "error", "critical"],
+                  },
+                  message: { type: "string" },
+                  suggestion: {
+                    type: ["string", "null"],
+                    description: "Concrete suggestion for fixing the issue, or null",
+                  },
+                },
+                required: ["line", "category", "severity", "message", "suggestion"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["filename", "comments"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["summary", "keyChanges", "riskLevel", "fileReviews"],
+    additionalProperties: false,
+  },
+};
 
 // Singleton — reuses connection pool across requests
 const openaiClient = new OpenAI({ apiKey: env.OPENAI_API_KEY });
 
-function buildUserMessage(prTitle: string, files: PRDiff["files"]): string {
+function buildUserMessage(
+  prTitle: string,
+  prBody: string | null,
+  files: PRDiff["files"]
+): string {
+  const descriptionSection =
+    prBody && prBody.trim().length > 0
+      ? `## PR Description\n${prBody.trim()}\n\n`
+      : "";
+
   const fileSection = files
     .map((f) => {
       const patch = f.patch ?? "(binary or no diff available)";
@@ -74,80 +120,52 @@ function buildUserMessage(prTitle: string, files: PRDiff["files"]): string {
     })
     .join("\n\n");
 
-  return `Review this GitHub PR titled: "${prTitle}"\n\n${fileSection || "No files changed."}`;
-}
-
-function buildRetryUserMessage(prTitle: string, files: PRDiff["files"]): string {
-  const base = buildUserMessage(prTitle, files);
-  return `${base}\n\nIMPORTANT: Your previous response was not valid JSON. Please respond with ONLY a valid JSON object. Do NOT include any text outside the JSON. Start immediately with { and end with }.`;
-}
-
-function parseResponseText(text: string): AIResponse {
-  let jsonText = text.trim();
-
-  const fenceMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) {
-    jsonText = fenceMatch[1].trim();
-  }
-
-  const parsed: unknown = JSON.parse(jsonText);
-  return AIResponseSchema.parse(parsed);
+  return `Review this GitHub PR titled: "${prTitle}"\n\n${descriptionSection}## Changed Files\n\n${fileSection || "No files changed."}`;
 }
 
 export async function analyzeDiff(
   prTitle: string,
+  prBody: string | null,
   files: PRDiff["files"]
 ): Promise<AIResponse> {
   logger.info({ prTitle, fileCount: files.length }, "Sending diff to OpenAI");
 
-  const userMessage = buildUserMessage(prTitle, files);
+  const userMessage = buildUserMessage(prTitle, prBody, files);
 
-  let firstError: unknown;
-
+  let response: OpenAI.Chat.Completions.ChatCompletion;
   try {
-    const response = await openaiClient.chat.completions.create({
+    response = await openaiClient.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMessage },
       ],
+      response_format: { type: "json_schema", json_schema: REVIEW_JSON_SCHEMA },
     });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new AIParseError("OpenAI returned no text content");
-    }
-
-    return parseResponseText(content);
   } catch (error) {
-    firstError = error;
-    logger.warn({ error: String(error) }, "First OpenAI attempt failed, retrying");
+    logger.error({ error: String(error) }, "OpenAI API call failed");
+    throw new AIParseError(`OpenAI API call failed: ${String(error)}`);
   }
 
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new AIParseError("OpenAI returned no text content");
+  }
+
+  // Zod as a safeguard against schema drift
+  let parsed: unknown;
   try {
-    const retryUserMessage = buildRetryUserMessage(prTitle, files);
-
-    const response = await openaiClient.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: RETRY_SYSTEM_PROMPT },
-        { role: "user", content: retryUserMessage },
-      ],
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new AIParseError("OpenAI returned no text content on retry");
-    }
-
-    return parseResponseText(content);
-  } catch (error) {
-    logger.error(
-      { firstError: String(firstError), retryError: String(error) },
-      "Both OpenAI attempts failed"
-    );
-    throw new AIParseError(
-      `Failed to parse OpenAI response after 2 attempts. Last error: ${String(error)}`
-    );
+    parsed = JSON.parse(content);
+  } catch {
+    throw new AIParseError(`OpenAI returned invalid JSON: ${content.slice(0, 200)}`);
   }
+
+  const result = AIResponseSchema.safeParse(parsed);
+  if (!result.success) {
+    logger.error({ errors: result.error.errors }, "OpenAI response failed Zod validation");
+    throw new AIParseError(`OpenAI response schema mismatch: ${result.error.message}`);
+  }
+
+  logger.info({ prTitle }, "OpenAI diff analysis complete");
+  return result.data;
 }
