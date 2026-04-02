@@ -1,0 +1,49 @@
+services:
+  # ── Backend: Express API ─────────────────────────────────────────────────────
+  - type: web
+    name: gitpulse-backend
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Set these in the Render dashboard → Environment → Secret Files / Env Vars
+      - key: DATABASE_URL
+        sync: false          # Neon connection string
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: GITHUB_APP_ID
+        sync: false
+
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false          # Paste the full PEM key (newlines as \n)
+
+      - key: GITHUB_APP_INSTALLATION_ID
+        sync: false
+
+      - key: GITHUB_CLIENT_ID
+        sync: false
+
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+
+      - key: SESSION_SECRET
+        sync: false          # node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+
+      - key: FRONTEND_URL
+        sync: false          # https://gitpulse.vercel.app (your Vercel URL)
+
+      # Optional
+      - key: SENTRY_DSN
+        sync: false
+      - key: LOG_LEVEL
+        value: info

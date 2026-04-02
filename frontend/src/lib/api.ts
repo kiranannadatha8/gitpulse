@@ -2,7 +2,13 @@ import axios from "axios";
 import type { Review } from "../types/review";
 import type { User } from "../types/user";
 
-const client = axios.create({ baseURL: "/api", withCredentials: true });
+// In dev, Vite proxies /api → localhost:3001 (see vite.config.ts).
+// In production, VITE_API_URL points to the deployed backend (e.g. Render).
+const BASE_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "/api";
+
+const client = axios.create({ baseURL: BASE_URL, withCredentials: true });
 
 export async function submitReview(prUrl: string): Promise<Review> {
   const response = await client.post<Review>("/reviews", { prUrl });
